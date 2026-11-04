@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+node_modules
+.pnp
+.pnp.js
+
+# Testing & Coverage
+coverage/
+coverage
+*.lcov
+
+# Build outputs
+.next/
+.next
+out/
+build/
+dist/
+dist
+*.tsbuildinfo
+
+# Legacy Archive (Assignment 1)
+_legacy-a1/
+_legacy-a1
+
+# Environment files - BẢO MẬT: KHÔNG COMMIT SECRET
+.env
+.env*.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor & OS files
+.vscode/*
+!.vscode/extensions.json
+*.code-workspace
+.idea/
+.DS_Store
+Thumbs.db
+
+# Docker data volume (if local)
+postgres_data/
+
+# Team secrets files
+*secret*.txt
+*secrets*.txt
