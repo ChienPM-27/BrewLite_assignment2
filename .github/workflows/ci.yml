@@ -1,0 +1,122 @@
+name: BrewLite CI Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-test-api:
+    name: Backend (NestJS) - Lint, Unit Test & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (Node 22)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: apps/api/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Code Quality (ESLint)
+        run: npm run lint
+
+      - name: Unit & Service Tests (Jest)
+        run: npm run test:ci
+
+      - name: Production Build
+        run: npm run build
+
+  lint-and-test-web:
+    name: Frontend (Next.js) - Lint, Component Test & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (Node 22)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Code Quality (Next.js ESLint)
+        run: npm run lint
+
+      - name: Frontend Component / Unit Tests (Vitest)
+        run: npm test
+
+      - name: Production Next.js Build
+        run: npm run build
+
+  integration-test-api:
+    name: Backend Integration Tests with PostgreSQL Service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: brewlite_test_user
+          POSTGRES_PASSWORD: brewlite_test_password
+          POSTGRES_DB: brewlite_test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (Node 22)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: apps/api/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Apply Database Migrations
+        env:
+          DATABASE_URL: postgresql://brewlite_test_user:brewlite_test_password@localhost:5432/brewlite_test_db?schema=public
+          DIRECT_URL: postgresql://brewlite_test_user:brewlite_test_password@localhost:5432/brewlite_test_db?schema=public
+        run: npx prisma migrate deploy
+
+      - name: Run Integration Tests (Supertest + DB)
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://brewlite_test_user:brewlite_test_password@localhost:5432/brewlite_test_db?schema=public
+          DIRECT_URL: postgresql://brewlite_test_user:brewlite_test_password@localhost:5432/brewlite_test_db?schema=public
+          JWT_SECRET: change-me-dev-only
+        run: npm run test:int

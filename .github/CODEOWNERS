@@ -1,0 +1,85 @@
+# ==============================================================================
+# BREWLITE ASSIGNMENT 2 - CODEOWNERS
+# ==============================================================================
+# Quy tắc: Mỗi thành viên chịu trách nhiệm review file/thư mục thuộc sở hữu của mình.
+# File dùng chung do Leader (Minh Chiến - ChienPM-27) phụ trách.
+
+# --- 1. MINH CHIẾN (LEADER) - File dùng chung, CI/CD, Container, Core ---
+.github/**                      @ChienPM-27
+docker-compose.yml              @ChienPM-27
+.env.example                    @ChienPM-27
+.nvmrc                          @ChienPM-27
+README.md                       @ChienPM-27
+docs/deployment.md              @ChienPM-27
+docs/CONTRIBUTING.md            @ChienPM-27
+docs/evidence/ci.md             @ChienPM-27
+docs/leader-checklist.md        @ChienPM-27
+docs/architecture/adr/001-*     @ChienPM-27
+docs/architecture/adr/007-*     @ChienPM-27
+docs/architecture/adr/008-*     @ChienPM-27
+docs/diagrams/deployment-*      @ChienPM-27
+apps/*/Dockerfile               @ChienPM-27
+apps/api/prisma/**              @ChienPM-27
+apps/api/src/common/**          @ChienPM-27
+apps/api/src/app.module.ts      @ChienPM-27
+apps/api/src/main.ts            @ChienPM-27
+apps/web/src/app/layout.tsx     @ChienPM-27
+apps/web/src/lib/api-client.ts  @ChienPM-27
+
+# --- 2. NHẬT LAN - Menu, Scope, C4 Container ---
+docs/requirements/context-and-scope.md  @ChienPM-27
+docs/requirements/fr-menu.md            @ChienPM-27
+docs/diagrams/usecase-overview.*        @ChienPM-27
+docs/diagrams/activity-browse.*         @ChienPM-27
+docs/architecture/architecture.md       @ChienPM-27
+docs/architecture/c4-container.*        @ChienPM-27
+docs/architecture/adr/002-*             @ChienPM-27
+apps/api/src/modules/products/**        @ChienPM-27
+apps/web/src/app/menu/**                @ChienPM-27
+docs/local-development.md               @ChienPM-27
+docs/evidence/production-check.md       @ChienPM-27
+
+# --- 3. VŨ HOÀNG HUY - Product Detail, Class Diagram, Pricing ---
+docs/requirements/fr-detail.md          @ChienPM-27
+docs/diagrams/class-diagram.*           @ChienPM-27
+docs/architecture/adr/003-*             @ChienPM-27
+apps/api/src/modules/pricing/**         @ChienPM-27
+apps/web/src/app/products/**            @ChienPM-27
+
+# --- 4. QUÁCH TUẤN HÀO - Auth, Cart, Activity E2E, Rollback ---
+docs/requirements/fr-auth.md            @ChienPM-27
+docs/requirements/fr-cart.md            @ChienPM-27
+docs/diagrams/activity-e2e.*            @ChienPM-27
+docs/architecture/adr/004-*             @ChienPM-27
+apps/api/src/modules/auth/**            @ChienPM-27
+apps/web/src/store/**                   @ChienPM-27
+apps/web/src/app/auth/**                @ChienPM-27
+apps/web/src/app/cart/**                @ChienPM-27
+docs/evidence/rollback.md               @ChienPM-27
+
+# --- 5. TÔN THẤT HẠNH - Order, State Machine, Usecase Đặt & Thanh toán ---
+docs/requirements/fr-order.md               @ChienPM-27
+docs/requirements/usecase-order-payment.md  @ChienPM-27
+docs/diagrams/usecase-order-payment.*       @ChienPM-27
+docs/diagrams/order-state-machine.*         @ChienPM-27
+docs/architecture/adr/006-*                 @ChienPM-27
+apps/api/src/modules/orders/**              @ChienPM-27
+docs/sprint/review-retrospective.md         @ChienPM-27
+
+# --- 6. NGUYỄN TRẦN GIA KIỆT - Payment, Sequence Checkout, Smoke Test ---
+docs/requirements/fr-payment.md             @ChienPM-27
+docs/diagrams/sequence-checkout.*           @ChienPM-27
+docs/architecture/adr/005-*                 @ChienPM-27
+apps/api/src/modules/payments/**            @ChienPM-27
+apps/web/src/app/checkout/payment/**        @ChienPM-27
+scripts/**                                  @ChienPM-27
+docs/evidence/smoke-test.md                 @ChienPM-27
+
+# --- 7. NGUYỄN QUANG HUY - History, Traceability, E2E Tests ---
+docs/requirements/fr-history.md             @ChienPM-27
+docs/requirements/test-scenarios.md         @ChienPM-27
+docs/architecture/adr/009-*                 @ChienPM-27
+docs/sprint/sprint-1-review.md              @ChienPM-27
+tests/**                                    @ChienPM-27
+docs/traceability-matrix.md                 @ChienPM-27
+docs/evidence/demo-link.md                  @ChienPM-27

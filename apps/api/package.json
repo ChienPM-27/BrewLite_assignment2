@@ -23,7 +23,8 @@
     "test:e2e": "jest --config test/jest-e2e.json --runInBand",
     "test:concurrency": "ts-node test/concurrency.ts",
     "lint": "eslint \"{src,test}/**/*.ts\"",
-    "test:ci": "jest --runInBand"
+    "test:ci": "jest --runInBand",
+    "test:int": "jest --config test/jest-int.json --runInBand"
   },
   "jest": {
     "moduleFileExtensions": [

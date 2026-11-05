@@ -1,0 +1,91 @@
+@startuml component-architecture
+title Kiến Trúc Thành Phần Hệ Thống BrewLite (Component Architecture)
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam roundcorner 6
+skinparam nodesep 12
+skinparam ranksep 14
+skinparam defaultFontSize 11
+skinparam componentFontSize 10
+skinparam componentStyle uml2
+skinparam packageStyle rectangle
+
+skinparam node {
+    BackgroundColor #FAFAFA
+    BorderColor #4A5568
+}
+skinparam component {
+    BackgroundColor #FFFFFF
+    BorderColor #2B6CB0
+    ArrowColor #2D3748
+}
+skinparam database {
+    BackgroundColor #EDF2F7
+    BorderColor #2D3748
+}
+
+actor "Khách hàng (Client Web Browser)" as Client
+
+node "Frontend Container (Next.js - Port 3000)" as FE_Node {
+    component [UI Pages & Components\n(Menu, Detail, Cart, Checkout, Orders, Auth)] as UI
+    component [Client Stores & Hooks\n(useCartStore, useAuthStore, React Hooks)] as StateStore
+    component [API Services\n(auth, product, order, payment services)] as ApiClient
+    
+    UI -> StateStore : Quản lý state
+    UI -> ApiClient : Gọi API
+}
+
+node "Backend Container (NestJS - Port 4000)" as BE_Node {
+    component [HTTP Pipeline (CORS, ValidationPipe, Interceptor, Guard)] as Middleware
+
+    package "Business Modules" {
+        component [AuthModule\n(Auth, JWT)] as AuthMod
+        component [ProductsModule\n(Catalog & Detail)] as ProductsMod
+        component [OrdersModule\n(Creation, Cancel, History)] as OrdersMod
+        component [PaymentsModule\n(Payment & Idempotency)] as PaymentsMod
+        component [Pricing & Promotions\n(PricingService, PromotionsService)] as PricingMod
+        component [LoyaltyModule\n(LoyaltyPoints)] as LoyaltyMod
+    }
+
+    component [Prisma ORM Module\n(PrismaService)] as PrismaMod
+    component [Mock Payment Gateway\n(MockGatewayService)] as MockGateway
+}
+
+node "Database Container (Port 5432)" as DB_Node {
+    database "PostgreSQL 16 (brewlite_db)" as PostgresDB {
+        folder "Relational Tables (schema: public)" {
+            [users / categories / products / product_size_prices]
+            [toppings / promotions / orders / order_items]
+            [order_item_toppings / payments / loyalty_transactions]
+        }
+    }
+}
+
+' External interactions
+Client --> UI : Tương tác trực tiếp (HTTP/HTML/JS)
+ApiClient --> Middleware : RESTful HTTP Request (/api/v1/*)\n[Bearer JWT / Idempotency-Key]
+
+' Backend routing
+Middleware --> AuthMod
+Middleware --> ProductsMod
+Middleware --> OrdersMod
+Middleware --> PaymentsMod
+
+' Inter-module relations
+OrdersMod ..> PricingMod : Tính tiền & phụ thu
+PaymentsMod ..> OrdersMod : Cập nhật trạng thái
+PaymentsMod ..> MockGateway : Xử lý cổng thanh toán
+PaymentsMod ..> LoyaltyMod : Tích lũy điểm thưởng
+
+AuthMod --> PrismaMod
+ProductsMod --> PrismaMod
+OrdersMod --> PrismaMod
+PaymentsMod --> PrismaMod
+LoyaltyMod --> PrismaMod
+
+PrismaMod --> PostgresDB : Prisma Client TCP 5432
+
+FE_Node -[hidden]down-> BE_Node
+BE_Node -[hidden]down-> DB_Node
+
+@enduml
