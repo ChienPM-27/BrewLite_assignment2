@@ -1,0 +1,131 @@
+@startuml deployment-production
+title Sơ Đồ Triển Khai Production Hệ Thống BrewLite (Task 3.2 - Deployment Diagram)
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam packageStyle rectangle
+skinparam nodesep 18
+skinparam ranksep 22
+skinparam defaultFontSize 11
+skinparam componentFontSize 10
+
+skinparam node {
+    BackgroundColor #FAFAFA
+    BorderColor #2D3748
+}
+skinparam component {
+    BackgroundColor #FFFFFF
+    BorderColor #3182CE
+    ArrowColor #2D3748
+}
+skinparam database {
+    BackgroundColor #EDF2F7
+    BorderColor #2B6CB0
+}
+skinparam cloud {
+    BackgroundColor #F7FAFC
+    BorderColor #4A5568
+}
+
+actor "Khách hàng / Thiết bị\n(Client Mobile PWA / Browser)" as Client
+
+cloud "Môi Trường Production (Cloud Deployment)" as CloudProd {
+
+    ' Tier 1: Frontend Vercel
+    node "Vercel Cloud Platform (Global Edge Network)" as VercelNode {
+        component "Web Application Server\n(Next.js 15 App Router - PWA)\n[apps/web]" as NextApp
+        note right of NextApp
+            **Vercel Production Config:**
+            * URL: https://brewlite.vercel.app (HTTPS: 443)
+            * SSL: Managed Let's Encrypt (Auto-renew)
+            * Env: NEXT_PUBLIC_API_URL
+            * Caching: Edge CDN & Static Assets
+        end note
+    }
+
+    ' Tier 2: Backend Render
+    node "Render Cloud Platform (Frankfurt / Singapore Region)" as RenderNode {
+        node "Docker Web Service Container\n(Linux Alpine Runtime)" as RenderContainer {
+            component "NestJS REST API Gateway\n[apps/api]" as NestApp
+            component "Mock Payment Gateway\n(Deterministic Service)" as MockPay
+            component "Health Monitoring Endpoint\n(GET /api/v1/health)" as HealthCheck
+
+            NestApp -down-> MockPay : Xử lý thanh toán mô phỏng
+            NestApp -down-> HealthCheck : Báo cáo trạng thái Uptime
+        }
+        note right of RenderContainer
+            **Render Production Config:**
+            * URL: https://brewlite-api.onrender.com (HTTPS: 443)
+            * Container Port: 4000
+            * Image: ghcr.io/chienpm-27/brewlite-api:latest
+            * Env: PORT, DATABASE_URL, DIRECT_URL, JWT_SECRET
+            * Auto-restart: on-failure
+        end note
+    }
+
+    ' Tier 3: Database Supabase
+    node "Supabase Managed Cloud (PostgreSQL 16 Engine)" as SupabaseNode {
+        component "PgBouncer Transaction Pooler\n(Port 6543 - Session/Transaction)" as PgPooler
+        database "Supabase PostgreSQL Database\n(Port 5432 - Direct Connection)" as SupabaseDB {
+            folder "Relational Schema (public)" {
+                [users / products / orders]
+                [order_items / payments / ingredients]
+            }
+        }
+        PgPooler -down-> SupabaseDB : Connection Pooling
+        note right of SupabaseNode
+            **Supabase Database Security:**
+            * SSL Mode: require (TLS 1.3)
+            * Runtime URL: Cổng 6543 (DATABASE_URL)
+            * Migration URL: Cổng 5432 (DIRECT_URL)
+            * Network Isolation: Restricted access
+        end note
+    }
+}
+
+cloud "Hệ Thống Tự Động Hóa CI/CD (GitHub Ecosystem)" as GitHubCloud {
+    node "GitHub Platform (Repository: BrewLite_assignment2)" as GH_Repo {
+        component "Monorepo Git VCS\n(Protected Branch: main)" as GitMain
+        component "GitHub Secrets Vault\n(VERCEL_TOKEN, RENDER_HOOK, DB_URL)" as SecretsVault
+    }
+
+    node "GitHub Actions Runners (Ubuntu VM)" as GH_Actions {
+        component "CI Pipeline (.github/workflows/ci.yml)\n[Lint -> Unit Test -> Build -> Integration Test]" as CI_Job
+        component "CD Pipeline (.github/workflows/cd.yml)\n[Docker Build -> GHCR Push -> Deploy Hook -> Smoke Test]" as CD_Job
+    }
+
+    node "GitHub Packages (Registry)" as GH_Registry {
+        component "GHCR Container Registry\n(ghcr.io/chienpm-27/brewlite-api:latest)" as GHCR
+    }
+}
+
+' External Client Interactions
+Client --> NextApp : HTTPS: 443\n(Truy cập giao diện Web / PWA)
+Client --> NestApp : HTTPS: 443\n(Gửi REST API / JWT Token)
+
+' Frontend to Backend
+NextApp --> NestApp : HTTPS: 443 (/api/v1/*)\n[Bearer JWT / Idempotency-Key]
+
+' Backend to Database
+NestApp --> PgPooler : TCP SSL: 6543 (DATABASE_URL)\nPrisma Client Runtime Queries
+CD_Job ..> SupabaseDB : TCP SSL: 5432 (DIRECT_URL)\nprisma migrate deploy
+
+' CI/CD Flow
+GitMain --> CI_Job : Trigger on Pull Request
+GitMain --> CD_Job : Trigger on Push / Tag Release (v1.0.0)
+SecretsVault ..> CD_Job : Cung cấp biến bí mật
+CD_Job --> GHCR : Push Docker Image (v1.0.0)
+GHCR ..> RenderContainer : Pull Docker Image
+CD_Job --> RenderNode : Trigger Deploy Webhook
+CD_Job --> VercelNode : Trigger Deploy (Vercel CLI / Webhook)
+CD_Job --> HealthCheck : Automated Smoke Test (/health)
+
+' Boundary Note
+legend bottom left
+    |= Môi trường |= Nền tảng |= Công nghệ |= Mục đích |
+    | **Local Dev** | Docker Engine | docker-compose.yml | Phát triển & kiểm thử cục bộ offline |
+    | **CI / Test** | GitHub Actions | Ubuntu VM + ephemeral Postgres | Tự động hóa kiểm tra PR (Lint, Unit, Integration) |
+    | **Production** | Vercel + Render + Supabase | Next.js Edge + NestJS Container + Postgres | Môi trường triển khai thực tế phục vụ người dùng |
+endlegend
+
+@enduml
