@@ -40,7 +40,7 @@ frame "Ranh Giới Môi Trường Production (Cloud Platforms)" as ProdBoundary 
         component "Web Application Server\n(Next.js 15 App Router - PWA)\n[apps/web]" as NextApp
         note right of NextApp
             **Frontend Config:**
-            * Target URL: https://brewlite.vercel.app (HTTPS 443)
+            * Target URL: https://brewlite-frontend.vercel.app (HTTPS 443)
             * SSL: Managed Let's Encrypt (Auto-renew)
             * Env: NEXT_PUBLIC_API_URL
             * PWA: manifest.json, installable
@@ -63,7 +63,7 @@ frame "Ranh Giới Môi Trường Production (Cloud Platforms)" as ProdBoundary 
 
         note right of RenderContainer
             **Backend Config:**
-            * Target URL: https://brewlite-api.onrender.com (HTTPS 443)
+            * Target URL: https://brewlite.onrender.com (HTTPS 443)
             * Container Port: 4000 (node:22-slim)
             * Image Tag: ghcr.io/chienpm-27/brewlite-api:<commit-sha>
             * Env: PORT, DATABASE_URL, DIRECT_URL, JWT_SECRET, JWT_EXPIRATION
@@ -90,8 +90,8 @@ frame "Ranh Giới Môi Trường Production (Cloud Platforms)" as ProdBoundary 
         note right of SupabaseNode
             **Database Connection Details:**
             * Public internet endpoint, bảo vệ qua TLS & password
-            * Runtime (API): aws-0-<region>.pooler.supabase.com:6543 (Transaction)
-            * Migration: db.<ref>.supabase.co:5432 (Session Mode / Direct)
+            * Runtime (API): aws-0-ap-southeast-1.pooler.supabase.com:6543 (Transaction)
+            * Migration: aws-0-ap-southeast-1.pooler.supabase.com:5432 (Session Mode)
             * SSL: bắt buộc (sslmode=require)
         end note
     }

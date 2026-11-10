@@ -7,40 +7,79 @@
 
 ---
 
-## 1. TỔNG QUAN KIẾN TRÚC TRIỂN KHAI DỰ KIẾN
+## 1. TỔNG QUAN KIẾN TRÚC TRIỂN KHAI THỰC TẾ (PRODUCTION CLOUD)
 
-Hệ thống BrewLite lựa chọn mô hình triển khai **Hybrid Cloud** với 3 dịch vụ đám mây chuyên biệt nhằm tối ưu chi phí (sử dụng các gói miễn phí/sinh viên) và dễ vận hành:
+Hệ thống BrewLite lựa chọn mô hình triển khai **Hybrid Cloud** với 3 dịch vụ đám mây chuyên biệt đã được kích hoạt và đang vận hành thực tế (Live):
 
-| Tầng hệ thống | Ứng dụng | Nền tảng Cloud | Domain / Endpoint dự kiến | Phương thức triển khai |
-| :--- | :--- | :--- | :--- | :--- |
-| **Frontend** | `apps/web` (Next.js 15 PWA) | **Vercel** | `https://brewlite.vercel.app` (hoặc domain do Vercel cấp) | Vercel Git Integration / Deploy Hook |
-| **Backend** | `apps/api` (NestJS 11) | **Render Web Service** | `https://brewlite-api.onrender.com` | Docker Container (`node:22-slim`) từ GHCR hoặc Render Git Build |
-| **Database** | PostgreSQL 16 (Prisma) | **Supabase** | `aws-0-[REGION].pooler.supabase.com` | Quản lý schema bằng `npx prisma migrate deploy` |
+| Tầng hệ thống | Ứng dụng | Nền tảng Cloud | Domain / Endpoint thực tế (Live) | Trạng thái Uptime | Phương thức triển khai |
+| :--- | :--- | :--- | :--- | :---: | :--- |
+| **Frontend** | `apps/web` (Next.js 15 PWA) | **Vercel** | [https://brewlite-frontend.vercel.app](https://brewlite-frontend.vercel.app) | **200 OK** | Vercel Git Integration / Edge CDN |
+| **Backend** | `apps/api` (NestJS 11) | **Render Web Service** | [https://brewlite.onrender.com](https://brewlite.onrender.com)<br>Base API: `https://brewlite.onrender.com/api/v1` | **200 OK** | Docker Container (`node:22-slim`) / Render Web Service |
+| **Database** | PostgreSQL 16 (Prisma) | **Supabase** | `aws-0-ap-southeast-1.pooler.supabase.com`<br>Region: `ap-southeast-1` (Singapore) | **Connected** | PgBouncer Pooler (Port 6543) & Session Pooler (Port 5432) |
+
+### 1.1. MINH CHỨNG KIỂM CHỨNG DỊCH VỤ HOẠT ĐỘNG THỰC TẾ (LIVE PROOF)
+
+Hệ thống đã được kiểm tra tính khả dụng thực tế thông qua các request kiểm thử trực tiếp:
+
+#### A. Kiểm chứng Frontend trên Vercel:
+```http
+Request: HEAD https://brewlite-frontend.vercel.app
+Status: HTTP/1.1 200 OK
+Server: Vercel
+Content-Type: text/html; charset=utf-8
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Vercel-Cache: HIT / MISS (Edge Caching)
+```
+
+#### B. Kiểm chứng Backend Health Check trên Render:
+```http
+Request: GET https://brewlite.onrender.com/api/v1/health
+Status: HTTP/1.1 200 OK
+Server: cloudflare / Render
+Content-Type: application/json; charset=utf-8
+
+Response Body:
+{
+  "success": true,
+  "statusCode": 200,
+  "data": {
+    "status": "ok"
+  },
+  "timestamp": "2026-11-10T06:02:46.873Z"
+}
+```
+
+#### C. Kiểm chứng Truy vấn Dữ liệu Sản phẩm (Backend nối Supabase Database):
+```http
+Request: GET https://brewlite.onrender.com/api/v1/products
+Status: HTTP/1.1 200 OK
+Response Body: Trả về đầy đủ danh sách 10 món nước thực tế đã seed trên cơ sở dữ liệu Supabase (Americano, Bạc xỉu, Cà phê sữa đá, Cappuccino, Espresso, Latte, Trà đào, Trà dâu, Trà nhãn, Trà quýt) kèm đầy đủ thông tin sizePrices và category.
+```
 
 ---
 
 ## 2. MA TRẬN BIẾN MÔI TRƯỜNG (ENVIRONMENT VARIABLES)
 
 > [!IMPORTANT]
-> Tuyệt đối **KHÔNG commit secret thật** vào Git. Các giá trị bên dưới là mẫu tham chiếu cấu hình cho Render và Vercel Dashboard.
+> Tuyệt đối **KHÔNG commit secret thật** vào Git. Toàn bộ thông tin đăng nhập, token và secret thực tế của nhóm được lưu trữ an toàn trong file nội bộ `team-secrets.txt` (đã được cấu hình trong `.gitignore`) và cài đặt trực tiếp trên Render Dashboard / Vercel Environment Variables / GitHub Secrets Vault.
 
 ### 2.1. Backend API (`apps/api` trên Render)
 
-| Tên biến | Bắt buộc | Giá trị mẫu / Định dạng | Mục đích & Ghi chú |
+| Tên biến | Bắt buộc | Giá trị cấu hình thực tế / Định dạng | Mục đích & Ghi chú |
 | :--- | :---: | :--- | :--- |
 | `NODE_ENV` | Có | `production` | Chế độ chạy production của NestJS |
 | `PORT` | Có | `4000` | Cổng container lắng nghe (Render tự map ra 443 HTTPS ngoài) |
-| `DATABASE_URL` | Có | `postgresql://postgres.[REF]:[PWD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?pgbouncer=true` | Chuỗi kết nối Supabase qua PgBouncer (Transaction Mode, cổng 6543) cho API runtime |
-| `DIRECT_URL` | Có | `postgresql://postgres.[REF]:[PWD]@aws-0-[REGION].pooler.supabase.com:5432/postgres` | Chuỗi kết nối Session Pooler (cổng 5432, hỗ trợ IPv4) phục vụ `prisma migrate deploy` |
-| `JWT_SECRET` | Có | `[Chuỗi ngẫu nhiên >= 32 ký tự]` | Khóa bí mật dùng để ký và giải mã JWT token |
+| `DATABASE_URL` | Có | `postgresql://postgres.tfqdvfsfzoyzkaftylyo:[PWD]@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true` | Chuỗi kết nối Supabase qua PgBouncer (Transaction Mode, cổng 6543) cho API runtime |
+| `DIRECT_URL` | Có | `postgresql://postgres.tfqdvfsfzoyzkaftylyo:[PWD]@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres` | Chuỗi kết nối Session Pooler (cổng 5432, hỗ trợ IPv4) phục vụ `prisma migrate deploy` |
+| `JWT_SECRET` | Có | `[Chuỗi ngẫu nhiên >= 32 ký tự, lưu trong team-secrets.txt]` | Khóa bí mật dùng để ký và giải mã JWT token |
 | `JWT_EXPIRATION` | Có | `7d` | Thời hạn sống của JWT token (khớp với `auth.module.ts` và `.env.example`) |
-| `CORS_ORIGIN` | Có | `https://brewlite.vercel.app` (hoặc URL frontend thật) | Miền được phép gọi API có kèm credentials |
+| `CORS_ORIGIN` | Có | `https://brewlite-frontend.vercel.app` | Miền frontend Vercel thật được phép gọi API có kèm credentials |
 
 ### 2.2. Frontend Web (`apps/web` trên Vercel)
 
-| Tên biến | Bắt buộc | Giá trị mẫu / Định dạng | Mục đích & Ghi chú |
+| Tên biến | Bắt buộc | Giá trị cấu hình thực tế | Mục đích & Ghi chú |
 | :--- | :---: | :--- | :--- |
-| `NEXT_PUBLIC_API_URL` | Có | `https://brewlite-api.onrender.com/api/v1` | URL gốc của Backend REST API trên Render |
+| `NEXT_PUBLIC_API_URL` | Có | `https://brewlite.onrender.com/api/v1` | URL gốc của Backend REST API thật trên Render |
 | `NODE_ENV` | Có | `production` | Tối ưu hóa build Next.js 15 |
 
 ---

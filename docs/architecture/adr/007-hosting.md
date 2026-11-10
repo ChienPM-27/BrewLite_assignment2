@@ -4,7 +4,7 @@
 > **Ngày quyết định**: 2026-11-04  
 > **Người đề xuất**: Phạm Minh Chiến (Leader)  
 > **Người duyệt**: Phạm Minh Chiến (Leader)  
-> **Phạm vi áp dụng**: Môi trường triển khai Production dự kiến của hệ thống BrewLite
+> **Phạm vi áp dụng**: Môi trường triển khai Production thực tế của hệ thống BrewLite (Vercel + Render + Supabase)
 
 ---
 
@@ -35,20 +35,29 @@ Chạy toàn bộ dịch vụ trên một máy chủ ảo Ubuntu bằng Docker C
 
 Chúng tôi chọn **Phương án A: Kiến trúc Đám Mây Chuyên Biệt (Vercel + Render + Supabase)**.
 
-**Chi tiết kế hoạch triển khai dự kiến**:
-1. **Frontend**: Triển khai trên **Vercel** tại domain mục tiêu `https://brewlite.vercel.app` (hoặc URL do Vercel cấp phát).
-   - Biến môi trường: `NEXT_PUBLIC_API_URL` trỏ tới URL API Render.
-2. **Backend**: Triển khai trên **Render Web Service** tại domain mục tiêu `https://brewlite-api.onrender.com`.
+**Chi tiết cấu hình và domain triển khai thực tế (Live)**:
+1. **Frontend**: Triển khai trên **Vercel** tại domain chính thức: **`https://brewlite-frontend.vercel.app`**.
+   - Biến môi trường: `NEXT_PUBLIC_API_URL=https://brewlite.onrender.com/api/v1`.
+   - Chứng chỉ SSL tự động cấp phát, hỗ trợ PWA installable.
+2. **Backend**: Triển khai trên **Render Web Service** tại domain chính thức: **`https://brewlite.onrender.com`**.
+   - Base REST API: `https://brewlite.onrender.com/api/v1`.
    - Chạy container Docker dựa trên `apps/api/Dockerfile` (`node:22-slim`).
    - Image tag dự kiến: `ghcr.io/chienpm-27/brewlite-api:<commit-sha>` hoặc `:v1.0.0`.
-   - Endpoint `/api/v1/health` được cấu hình làm Health Check Path trên Render.
-   - Biến môi trường: `PORT=4000`, `NODE_ENV=production`, `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `JWT_EXPIRATION=7d`, `CORS_ORIGIN`.
+   - Endpoint `/api/v1/health` được cấu hình làm Health Check Path trên Render (trả về `HTTP 200 {"status":"ok"}`).
+   - Biến môi trường: `PORT=4000`, `NODE_ENV=production`, `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `JWT_EXPIRATION=7d`, `CORS_ORIGIN=https://brewlite-frontend.vercel.app`.
    - Render cung cấp tính năng **Log Stream** thời gian thực để theo dõi hoạt động và lỗi của ứng dụng.
-3. **Database**: **Supabase PostgreSQL 16**.
+3. **Database**: **Supabase PostgreSQL 16 (Region Singapore: `ap-southeast-1`)**.
    - Endpoint cơ sở dữ liệu mở ra Internet nhưng được bảo vệ nghiêm ngặt bằng giao thức mã hóa TLS bắt buộc (`sslmode=require`) và mật khẩu mạnh.
-   - Cổng 6543 (Transaction Mode): Dùng làm `DATABASE_URL` cho NestJS runtime kết nối qua PgBouncer.
-   - Cổng 5432 (Session Mode trên pooler): Dùng làm `DIRECT_URL` để chạy `npx prisma migrate deploy`, hỗ trợ cả mạng IPv4 trên các runner CI/CD.
+   - Cổng 6543 (Transaction Mode qua PgBouncer): `aws-0-ap-southeast-1.pooler.supabase.com:6543`, dùng làm `DATABASE_URL` cho NestJS runtime.
+   - Cổng 5432 (Session Mode trên pooler): `aws-0-ap-southeast-1.pooler.supabase.com:5432`, dùng làm `DIRECT_URL` để chạy `npx prisma migrate deploy`, hỗ trợ cả mạng IPv4 trên các runner CI/CD.
    - Dữ liệu được lưu trữ bền vững trên Persistent Volume của Supabase.
+4. **Bảo mật biến môi trường**:
+   - Toàn bộ secret và tài khoản demo được bảo mật trong file `team-secrets.txt` (đã khai báo trong `.gitignore`) và cài đặt trực tiếp vào GitHub Secrets Vault / Vercel / Render Dashboard, không lưu trong mã nguồn Git.
+
+### 3.1. MINH CHỨNG HOẠT ĐỘNG THỰC TẾ (LIVE HEALTH CHECK)
+- **Frontend Vercel**: `curl.exe -I https://brewlite-frontend.vercel.app` ➔ `HTTP/1.1 200 OK`
+- **Backend Render Health**: `curl.exe https://brewlite.onrender.com/api/v1/health` ➔ `HTTP/1.1 200 OK`, `{"success":true,"statusCode":200,"data":{"status":"ok"}}`
+- **Backend Products (Supabase DB)**: `curl.exe https://brewlite.onrender.com/api/v1/products` ➔ `HTTP/1.1 200 OK`, nạp thành công 10 sản phẩm từ DB.
 
 ---
 
