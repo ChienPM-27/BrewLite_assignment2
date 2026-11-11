@@ -174,7 +174,19 @@ describe('ProductDetailPage (FR-07..09)', () => {
     ).toBeInTheDocument();
   });
 
-  it('cập nhật đúng tổng giá khi thay đổi số lượng và thêm đúng item vào giỏ hàng', async () => {
+  it('hiển thị ảnh giữ chỗ khi imageUrl = null (AC-07.1)', async () => {
+    const noImageProduct = createMockProduct({ imageUrl: null });
+    mockedGetProductById.mockResolvedValueOnce(noImageProduct);
+
+    await renderProductDetailPage(noImageProduct.id);
+
+    const placeholderImg = screen.getByRole('img', {
+      name: `${noImageProduct.name} (chưa có ảnh)`,
+    });
+    expect(placeholderImg).toBeInTheDocument();
+  });
+
+  it('cập nhật đúng tổng giá khi tăng/giảm số lượng (1..99) và thêm đúng item vào giỏ hàng (AC-08.3, AC-09.3)', async () => {
     const product = createMockProduct();
     mockedGetProductById.mockResolvedValueOnce(product);
 
@@ -186,15 +198,31 @@ describe('ProductDetailPage (FR-07..09)', () => {
     fireEvent.click(within(sizeGroup).getByRole('radio', { name: /Size M/i }));
     fireEvent.click(screen.getByRole('checkbox', { name: /Trân châu trắng/i }));
 
-    // Đơn giá = 35.000 + 5.000 + 5.000 = 45.000đ; tăng số lượng lên 2 -> 90.000đ
+    const decreaseBtn = screen.getByRole('button', { name: 'Giảm số lượng' });
     const increaseBtn = screen.getByRole('button', { name: 'Tăng số lượng' });
-    fireEvent.click(increaseBtn);
 
+    // Ở biên dưới quantity = 1: nút giảm phải bị disable
+    expect(decreaseBtn).toBeDisabled();
+
+    // Đơn giá = 35.000 + 5.000 + 5.000 = 45.000đ; tăng lên 2 -> 90.000đ
+    fireEvent.click(increaseBtn);
+    expect(decreaseBtn).toBeEnabled();
+    expect(screen.getByText('Thành tiền (× 2):')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Thêm vào giỏ hàng – 90\.000đ/i }),
+    ).toBeEnabled();
+
+    // Giảm về 1 -> quay lại 45.000đ, rồi tăng lại 2 để thêm giỏ
+    fireEvent.click(decreaseBtn);
+    expect(decreaseBtn).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: /Thêm vào giỏ hàng – 45\.000đ/i }),
+    ).toBeEnabled();
+
+    fireEvent.click(increaseBtn);
     const addBtn = screen.getByRole('button', {
       name: /Thêm vào giỏ hàng – 90\.000đ/i,
     });
-    expect(addBtn).toBeEnabled();
-
     fireEvent.click(addBtn);
 
     expect(screen.getByText('Đã thêm vào giỏ hàng!')).toBeInTheDocument();
@@ -208,9 +236,16 @@ describe('ProductDetailPage (FR-07..09)', () => {
       quantity: 2,
       estimatedUnitPrice: 45000,
     });
+
+    // Kiểm tra biên trên MAX_QUANTITY = 99: tăng thêm 97 lần (2 -> 99) -> nút tăng bị disable
+    for (let i = 0; i < 97; i++) {
+      fireEvent.click(increaseBtn);
+    }
+    expect(increaseBtn).toBeDisabled();
+    expect(screen.getByLabelText('Số lượng: 99')).toBeInTheDocument();
   });
 
-  it('disable nút thêm vào giỏ hàng khi thiếu dữ liệu size bắt buộc hoặc sản phẩm ngừng bán', async () => {
+  it('disable nút thêm vào giỏ hàng khi thiếu dữ liệu size bắt buộc hoặc sản phẩm ngừng bán (AC-07.4, AC-08.4)', async () => {
     // Trường hợp 1: Thiếu thuộc tính size bắt buộc (sizePrices rỗng -> size = null)
     const missingSizeProduct = createMockProduct({
       id: 'test-prod-no-size',
@@ -241,21 +276,61 @@ describe('ProductDetailPage (FR-07..09)', () => {
 
     await renderProductDetailPage(soldOutProduct.id);
 
+    expect(
+      screen.getByText('Sản phẩm không còn bán / Hết hàng'),
+    ).toBeInTheDocument();
     const soldOutBtn = screen.getByRole('button', {
       name: 'Sản phẩm không còn bán',
     });
     expect(soldOutBtn).toBeDisabled();
+    expect(
+      screen.getByRole('radio', { name: /Size S/i }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole('checkbox', { name: /Trân châu trắng/i }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Tăng số lượng' }),
+    ).toBeDisabled();
   });
 
-  it('hiển thị trạng thái lỗi 404 khi sản phẩm không tồn tại (AC-07.2)', async () => {
+  it('hiển thị trạng thái lỗi 404, 400 và cho phép Thử lại khi lỗi mạng (AC-07.2, AC-07.3)', async () => {
+    // 1. Lỗi 404
     mockedGetProductById.mockRejectedValueOnce(
       new ApiError('Không tìm thấy sản phẩm', 404),
     );
-
-    await renderProductDetailPage('test-prod-missing');
-
+    const { unmount: unmount404 } = await renderProductDetailPage('test-prod-missing');
     expect(screen.getByText('Không tìm thấy sản phẩm')).toBeInTheDocument();
     expect(screen.getByText('Lỗi 404')).toBeInTheDocument();
+    unmount404();
+
+    // 2. Lỗi 400 (ID sai định dạng)
+    mockedGetProductById.mockRejectedValueOnce(
+      new ApiError('ID sản phẩm không hợp lệ', 400),
+    );
+    const { unmount: unmount400 } = await renderProductDetailPage('bad!id');
+    expect(screen.getByText('Không thể mở sản phẩm')).toBeInTheDocument();
+    expect(screen.getByText('Lỗi 400')).toBeInTheDocument();
+    unmount400();
+
+    // 3. Lỗi mạng -> bấm Thử lại khôi phục thành công
+    const recoveredProduct = createMockProduct();
+    mockedGetProductById
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockResolvedValueOnce(recoveredProduct);
+
+    await renderProductDetailPage(recoveredProduct.id);
+    expect(screen.getByText('Không thể tải sản phẩm')).toBeInTheDocument();
+
+    const retryBtn = screen.getByRole('button', { name: 'Thử lại' });
+    await act(async () => {
+      fireEvent.click(retryBtn);
+    });
+
+    expect(
+      screen.getByRole('heading', { level: 1, name: recoveredProduct.name }),
+    ).toBeInTheDocument();
+    expect(mockedGetProductById).toHaveBeenCalledTimes(4);
   });
 });
 

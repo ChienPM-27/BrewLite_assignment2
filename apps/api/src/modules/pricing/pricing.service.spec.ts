@@ -370,9 +370,12 @@ describe('PricingService (FR-08, FR-09)', () => {
       expect(prismaMock.product.findMany).not.toHaveBeenCalled();
     });
 
-    it('từ chối productId rỗng hoặc sai kiểu', async () => {
+    it('từ chối productId rỗng, phần tử null hoặc sai kiểu', async () => {
       await expect(
         service.calculate([{ productId: '', quantity: 1 }]),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        service.calculate([null as unknown as PricingItemInput]),
       ).rejects.toThrow(BadRequestException);
       await expect(
         service.calculate([
