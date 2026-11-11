@@ -1,256 +1,293 @@
-@startuml class-diagram-backend
-title Sơ Đồ Lớp Backend: Các Dịch Vụ (Services) & Thực Thể Dữ Liệu (Prisma Entities)
-skinparam defaultFontName Arial
+@startuml class-diagram
+title BrewLite Assignment 2 — Biểu Đồ Lớp Hệ Thống (Core Entities, Enums & Services)
+
+top to bottom direction
 skinparam shadowing false
-skinparam roundcorner 6
+skinparam roundcorner 8
+skinparam linetype ortho
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
 skinparam classAttributeIconSize 0
 skinparam packageStyle rectangle
+skinparam nodesep 45
+skinparam ranksep 50
 
 skinparam classFontColor #FFFFFF
-skinparam classStereotypeFontColor #FFFFFF
-skinparam stereotypeFontColor #FFFFFF
+skinparam classStereotypeFontColor #E2E8F0
+skinparam stereotypeFontColor #E2E8F0
 
 skinparam class {
     BackgroundColor #FFFFFF
     BorderColor #2B6CB0
     HeaderBackgroundColor #1A365D
     HeaderFontColor #FFFFFF
+    ArrowColor #334155
+    ArrowFontColor #334155
 }
 
-package "Domain Entities (Prisma Models)" #F8FAFC {
-    class User <<model>> {
-        + id : String [PK]
-        + email : String [UK]
+skinparam enum {
+    BackgroundColor #FFFFFF
+    BorderColor #2B6CB0
+    HeaderBackgroundColor #1A365D
+    HeaderFontColor #FFFFFF
+}
+
+skinparam note {
+    BackgroundColor #FEF3C7
+    BorderColor #D97706
+    FontColor #78350F
+}
+
+' ==========================================================
+' 1. ENUMS TRẠNG THÁI & PHÂN LOẠI (Prisma Schema)
+' ==========================================================
+package "Domain Enums" #F1F5F9 {
+    enum Role <<UserRole>> {
+        CUSTOMER
+        ADMIN
+        BARISTA
+    }
+
+    enum OrderStatus {
+        PENDING
+        PAID
+        PREPARING
+        READY
+        COMPLETED
+        PAYMENT_FAILED
+        CANCELLED
+    }
+
+    enum PaymentStatus {
+        PENDING
+        SUCCESS
+        FAILED
+    }
+
+    enum PaymentMethod {
+        E_WALLET
+        BANK_CARD
+    }
+
+    enum PaymentGateway {
+        MOCK
+        VNPAY
+    }
+
+    enum ProductSize {
+        S
+        M
+        L
+    }
+
+    enum LoyaltyTransactionType {
+        EARNED
+        SPENT
+        REFUNDED
+    }
+}
+
+' ==========================================================
+' 2. CORE ENTITIES & INHERITANCE HIERARCHY
+' ==========================================================
+package "Core Domain Entities (PostgreSQL / Prisma Models)" #F8FAFC {
+    abstract class BaseEntity {
+        + id : String <<PK, cuid>>
+    }
+
+    abstract class AuditableEntity {
+        + createdAt : DateTime
+        + updatedAt : DateTime
+    }
+
+    class User <<entity>> {
+        + email : String <<UK>>
         + passwordHash : String
         + fullName : String?
-        + loyaltyPoints : Int
-        + createdAt : DateTime
-        + updatedAt : DateTime
+        + role : Role = CUSTOMER
+        + loyaltyPoints : Int = 0
+        --
+        + isAdmin() : Boolean
+        + addLoyaltyPoints(points: Int) : void
     }
 
-    class Category <<model>> {
-        + id : String [PK]
-        + name : String [UK]
-        + slug : String [UK]
-        + displayOrder : Int
-        + createdAt : DateTime
-        + updatedAt : DateTime
-    }
-
-    class Product <<model>> {
-        + id : String [PK]
-        + categoryId : String? [FK]
+    class Product <<entity>> {
+        + categoryId : String? <<FK>>
         + name : String
         + basePrice : Decimal(12,0)
         + imageUrl : String?
-        + stock : Int
-        + version : Int <<OptimisticLock>>
-        + isAvailable : Boolean
-        + createdAt : DateTime
-        + updatedAt : DateTime
+        + stock : Int <<deprecated CR-01>>
+        + version : Int <<deprecated CR-01>>
+        + isAvailable : Boolean = true
+        --
+        + isSellable() : Boolean
     }
 
-    class ProductSizePrice <<model>> {
-        + id : String [PK]
-        + productId : String [FK]
-        + size : ProductSize (S|M|L)
-        + priceAdjustment : Decimal(12,0)
-    }
-
-    class Topping <<model>> {
-        + id : String [PK]
-        + name : String [UK]
-        + price : Decimal(12,0)
-        + stock : Int
-        + isAvailable : Boolean
-        + createdAt : DateTime
-        + updatedAt : DateTime
-    }
-
-    class Promotion <<model>> {
-        + id : String [PK]
-        + code : String [UK]
+    class Promotion <<entity>> {
+        + code : String <<UK>>
         + description : String?
         + discountPercent : Int?
         + discountAmount : Decimal(12,0)?
         + maxDiscount : Decimal(12,0)?
-        + minOrderAmount : Decimal(12,0)
+        + minOrderAmount : Decimal(12,0) = 0
         + startDate : DateTime
         + endDate : DateTime?
-        + isActive : Boolean
-        + createdAt : DateTime
-        + updatedAt : DateTime
+        + isActive : Boolean = true
+        --
+        + isApplicable(subtotal: Decimal, now: DateTime) : Boolean
+        + computeDiscount(subtotal: Decimal) : Decimal
     }
 
-    class Order <<model>> {
-        + id : String [PK]
-        + orderNumber : Int [UK]
-        + userId : String [FK]
-        + promotionId : String? [FK]
-        + status : OrderStatus
+    class Order <<entity>> {
+        + orderNumber : Int <<UK, autoincrement>>
+        + userId : String <<FK>>
+        + promotionId : String? <<FK>>
+        + status : OrderStatus = PENDING
         + totalAmount : Decimal(12,0)
-        + discountAmount : Decimal(12,0)
+        + discountAmount : Decimal(12,0) = 0
         + finalAmount : Decimal(12,0)
-        + pointsEarned : Int
+        + pointsEarned : Int = 0
         + paidAt : DateTime?
-        + version : Int <<StateLock>>
-        + createdAt : DateTime
-        + updatedAt : DateTime
+        + version : Int = 0 <<OptimisticLock>>
+        --
+        + canTransitionTo(next: OrderStatus) : Boolean
+        + calculateFinalAmount() : Decimal
     }
 
-    class OrderItem <<model>> {
-        + id : String [PK]
-        + orderId : String [FK]
-        + productId : String [FK]
-        + size : ProductSize
-        + quantity : Int
+    class OrderItem <<entity>> {
+        + orderId : String <<FK>>
+        + productId : String <<FK>>
+        + size : ProductSize = M
+        + quantity : Int = 1
         + unitPrice : Decimal(12,0)
         + lineTotal : Decimal(12,0)
+        --
+        + calculateLineTotal(toppingTotal: Decimal) : Decimal
     }
 
-    class OrderItemTopping <<model>> {
-        + id : String [PK]
-        + orderItemId : String [FK]
-        + toppingId : String [FK]
-        + price : Decimal(12,0)
-    }
-
-    class Payment <<model>> {
-        + id : String [PK]
-        + orderId : String [FK]
-        + idempotencyKey : String [UK]
+    class Payment <<entity>> {
+        + orderId : String <<FK>>
+        + idempotencyKey : String <<UK>>
         + requestHash : String?
         + amount : Decimal(12,0)
         + method : PaymentMethod
-        + status : PaymentStatus
+        + gateway : PaymentGateway = MOCK
+        + status : PaymentStatus = PENDING
         + failureReason : String?
         + transactionRef : String?
+        + gatewayTransactionNo : String?
+        + paymentUrl : String?
         + createdAt : DateTime
+        --
+        + isCompleted() : Boolean
+        + matchesRequestHash(hash: String) : Boolean
     }
 
-    class LoyaltyTransaction <<model>> {
-        + id : String [PK]
-        + userId : String [FK]
-        + orderId : String? [FK]
+    class LoyaltyTransaction <<entity>> {
+        + userId : String <<FK>>
+        + orderId : String? <<FK>>
         + points : Int
         + type : LoyaltyTransactionType
         + reason : String
         + createdAt : DateTime
-    }
-
-    class OrderStatusHistory <<model>> {
-        + id : String [PK]
-        + orderId : String [FK]
-        + fromStatus : OrderStatus?
-        + toStatus : OrderStatus
-        + changedBy : String?
-        + reason : String?
-        + createdAt : DateTime
+        --
+        + getSignedPoints() : Int
     }
 }
 
-package "Backend Services (NestJS Providers)" #EDF2F7 {
-    class AuthService {
-        + register(dto: RegisterDto): Promise<AuthResult>
-        + login(dto: LoginDto): Promise<AuthResult>
+' ==========================================================
+' 3. CORE APPLICATION SERVICES (NestJS Providers)
+' ==========================================================
+package "Core Backend Services (NestJS)" #EFF6FF {
+    class AuthService <<service>> {
+        + register(dto: RegisterDto) : Promise<AuthResult>
+        + login(dto: LoginDto) : Promise<AuthResult>
     }
 
-    class ProductsService {
-        + getProducts(): Promise<ProductItem[]>
+    class ProductDetailService <<service>> {
+        + getProductById(id: string) : Promise<ProductDetailDto>
     }
 
-    class ProductDetailService {
-        + getProductById(id: string): Promise<ProductDetailDto>
+    class PricingService <<service>> {
+        + calculate(items: PricingItemInput[]) : Promise<PricingResult>
     }
 
-    class OrdersService {
-        + create(userId: string, dto: CreateOrderDto): Promise<Order>
+    class PromotionsService <<service>> {
+        + validate(code: string, totalAmount: number) : Promise<PromotionResult?>
     }
 
-    class OrderService {
-        + transition(tx, orderId: string, toStatus: OrderStatus, meta): Promise<Order>
+    class OrdersService <<service>> {
+        + create(userId: string, dto: CreateOrderDto) : Promise<Order>
     }
 
-    class CancelOrderService {
-        + cancel(orderId: string, userId: string): Promise<CancelResult>
+    class OrderService <<service>> {
+        + transition(tx, orderId: string, to: OrderStatus, opts?) : Promise<Order>
     }
 
-    class HistoryService {
-        + findAll(userId: string, query?: GetOrderHistoryDto): Promise<OrderHistoryResult>
-        + findOne(userId: string, orderId: string): Promise<OrderDetail>
+    class PaymentsService <<service>> {
+        + createPayment(userId: string, key: string, dto: CreatePaymentDto, mockOutcome?) : Promise<PaymentResponse>
+        + handleVnpayIpn(query: Record<string, string>) : Promise<VnpayIpnResponse>
+        + getPaymentById(userId: string, paymentId: string) : Promise<PaymentResponse>
     }
 
-    class PaymentsService {
-        + createPayment(userId: string, key: string, body: CreatePaymentDto, mockOutcome?: string): Promise<PaymentResponse>
-        - replayExistingPayment(payment, userId: string, requestHash: string): PaymentResponse
-    }
-
-    class IngredientStockHelper {
-        + deductIngredients(tx, needs)
-        + restoreIngredients(tx, usages)
-    }
-
-    class MockGatewayService {
-        + processPayment(mockOutcome?: string): 'SUCCESS' | 'FAILED'
-    }
-
-    class PricingService {
-        + calculate(items: PricingItemInput[]): Promise<PricingCalculationResult>
-    }
-
-    class PromotionsService {
-        + validate(code: string, subtotal: number): Promise<PromotionValidationResult>
-    }
-
-    class LoyaltyService {
-        + award(tx, order: { id, userId, finalAmount }): Promise<void>
-    }
-
-    class PrismaService {
-        + onModuleInit(): Promise<void>
-        + onModuleDestroy(): Promise<void>
-        + $transaction(fn): Promise<any>
+    class LoyaltyService <<service>> {
+        + award(tx, order: { id, userId, finalAmount }) : Promise<void>
     }
 }
 
-' Quan hệ giữa các Entity
-User "1" *-- "0..*" Order
-User "1" *-- "0..*" LoyaltyTransaction
-Category "0..1" o-- "0..*" Product
-Product "1" *-- "1..*" ProductSizePrice
-Product "1" <-- "0..*" OrderItem
-Promotion "0..1" o-- "0..*" Order
-Order "1" *-- "1..*" OrderItem
-Order "1" *-- "0..*" Payment
-Order "1" *-- "0..*" OrderStatusHistory
-Order "0..1" <-- "0..*" LoyaltyTransaction
-OrderItem "1" *-- "0..*" OrderItemTopping
-Topping "1" <-- "0..*" OrderItemTopping
+' ==========================================================
+' 4. QUAN HỆ KẾ THỪA (INHERITANCE)
+' ==========================================================
+BaseEntity <|-- AuditableEntity
+BaseEntity <|-- OrderItem
+BaseEntity <|-- Payment
+BaseEntity <|-- LoyaltyTransaction
 
-' Tương tác giữa các Service
-OrdersService --> IngredientStockHelper : deducts/restores ingredients
-OrdersService --> PricingService : delegates pricing
-OrdersService --> PromotionsService : delegates coupon validation
-OrdersService --> PrismaService : uses transaction & lock
-PaymentsService --> OrderService : transition(PENDING -> PAID/FAILED)
-PaymentsService --> LoyaltyService : award loyalty points
-PaymentsService --> MockGatewayService : processPayment()
-PaymentsService --> PrismaService : reads/writes payment records
-CancelOrderService --> OrderService : transition(CANCELLED)
-CancelOrderService --> PrismaService : restocks inventory
-AuthService --> PrismaService
-ProductsService --> PrismaService
-ProductDetailService --> PrismaService
-HistoryService --> PrismaService
-LoyaltyService --> PrismaService
+AuditableEntity <|-- User
+AuditableEntity <|-- Product
+AuditableEntity <|-- Promotion
+AuditableEntity <|-- Order
 
-' Service tác động lên Entity
-AuthService ..> User : creates & queries
-ProductsService ..> Product : queries active products
-ProductDetailService ..> Product : queries detail & toppings
-OrdersService ..> Order : creates Order & OrderItems
-OrdersService ..> Product : checks & decrements stock
-PaymentsService ..> Payment : records payment transaction
-OrderService ..> OrderStatusHistory : logs state transitions
+' ==========================================================
+' 5. QUAN HỆ GIỮA CÁC ENTITY (COMPOSITION, AGGREGATION, ASSOCIATION)
+' ==========================================================
+' Composition (*--): Tồn tại phụ thuộc chặt vào cha (onDelete: Cascade)
+Order "1" *-- "1..*" OrderItem : contains >
+Order "1" *-- "0..*" Payment : paid by >
 
+' Aggregation (o--): Sở hữu yếu, vòng đời độc lập
+Promotion "0..1" o-- "0..*" Order : applies to >
+User "1" o-- "0..*" LoyaltyTransaction : owns >
+
+' Association (--> / <--): Liên kết nghiệp vụ chuẩn
+User "1" --> "0..*" Order : places >
+Product "1" <-- "0..*" OrderItem : references <
+Order "0..1" <-- "0..*" LoyaltyTransaction : awards / refunds <
+
+' ==========================================================
+' 6. TƯƠNG TÁC SERVICE & ENTITY
+' ==========================================================
+OrdersService --> PricingService : calculates prices
+OrdersService --> PromotionsService : validates voucher
+PaymentsService --> OrderService : transitions status
+PaymentsService --> LoyaltyService : awards points
+
+AuthService ..> User : manages
+ProductDetailService ..> Product : queries
+PricingService ..> Product : reads DB prices
+PromotionsService ..> Promotion : validates
+OrdersService ..> Order : creates
+OrderService ..> Order : updates status & version
+PaymentsService ..> Payment : records & replays
+LoyaltyService ..> LoyaltyTransaction : logs points
+
+note bottom of OrderService
+  Invariant: Duy nhất OrderService.transition()
+  được phép cập nhật Order.status (Optimistic Lock).
+end note
+
+note bottom of PricingService
+  Invariant: Toàn bộ giá do PricingService
+  tính độc lập từ DB, bỏ qua giá từ Client.
+end note
 @enduml
