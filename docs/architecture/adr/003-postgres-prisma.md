@@ -137,19 +137,21 @@ npx prisma migrate deploy
 
 ## 5. CƠ CHẾ SEED DATA TÁI TẠO MÔI TRƯỜNG
 
-### 5.1. Cấu trúc tệp `apps/api/prisma/seed.ts`
+### 5.1. Cấu trúc và hành vi hiện tại của `apps/api/prisma/seed.ts`
 Tệp seed được khai báo trong `apps/api/package.json` (`"prisma": { "seed": "ts-node prisma/seed.ts" }`), thực thi theo thứ tự phụ thuộc khóa ngoại:
-1. **Guard kiểm tra tồn tại** (`productCount > 0 && recipeCount > 0 && !force`).
-2. **Dọn dữ liệu cũ khi `--force`**: Xóa theo thứ tự bảng con trước, bảng cha sau (`OrderItemTopping` → `OrderItem` → `Payment` → `OrderStatusHistory` → `LoyaltyTransaction` → `Order` → `ProductSizePrice` → `Product` → `Category` → `Topping` → `Promotion` → `User` → `OrderIngredientUsage` → `ProductRecipe` → `ToppingRecipe` → `Ingredient`).
-3. **Nạp dữ liệu theo tầng**:
-   - Tài khoản `ADMIN` (đọc từ biến môi trường `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_FULL_NAME`) và tài khoản khách hàng demo.
-   - `Ingredient` (18 nguyên liệu), `Category` (2 danh mục), `Topping` (3 loại).
+1. **Guard kiểm tra điều kiện bỏ qua** (`productCount > 0 && recipeCount > 0 && !force`):
+   - Chỉ khi DB đã có đồng thời sản phẩm (`productCount > 0`) **và** công thức (`recipeCount > 0`) mà không truyền `--force` (hoặc `FORCE_SEED=true`), script mới thoát sớm (`return`) với mã `0`.
+   - **Lưu ý quan trọng**: Nếu DB thiếu sản phẩm *hoặc* thiếu công thức (`productCount === 0 || recipeCount === 0`), script vẫn đi vào bước `deleteMany()` ở bên dưới **ngay cả khi không truyền `--force`**.
+2. **Dọn dữ liệu hiện có trước khi nạp lại**: Gọi `deleteMany()` (không có mệnh đề `where`) theo thứ tự bảng con trước, bảng cha sau (`OrderItemTopping` → `OrderItem` → `Payment` → `OrderStatusHistory` → `LoyaltyTransaction` → `Order` → `ProductSizePrice` → `Product` → `Category` → `Topping` → `Promotion` → `User` → `OrderIngredientUsage` → `ProductRecipe` → `ToppingRecipe` → `Ingredient`).
+3. **Nạp dữ liệu bằng `create` / `createMany` (chưa dùng `upsert`)**:
+   - Tài khoản `ADMIN` (đọc từ biến môi trường `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_FULL_NAME`) và tài khoản khách hàng demo (`demo@brewlite.test`).
+   - `Ingredient` (18 nguyên liệu, gồm nguyên liệu stock thấp để test hết hàng), `Category` (2 danh mục), `Topping` (3 loại).
    - `Product` (10 sản phẩm) kèm `ProductSizePrice` (`S: +0`, `M: +5000`, `L: +10000`).
    - `ProductRecipe` (theo tỉ lệ size `S: 0.8`, `M: 1.0`, `L: 1.2`) & `ToppingRecipe`.
    - `Promotion` (`WELCOME10`, `GIAM15K`).
 
-### 5.2. Cơ chế Idempotency (Chạy nhiều lần không lỗi / không trùng lặp)
-- **Mặc định an toàn (`npx prisma db seed`)**: Nếu DB đã có sẵn sản phẩm và công thức (`productCount > 0 && recipeCount > 0`), script tự động bỏ qua (`return`) và thoát mã `0`, tránh lỗi `Unique constraint failed` khi container khởi động lại (`docker-compose.yml` chạy `npx prisma migrate deploy && npx prisma db seed && node dist/main`).
+### 5.2. Cơ chế chạy lặp lại ở Local & CI
+- **Khi DB đã có đủ dữ liệu (`productCount > 0 && recipeCount > 0`)**: Chạy `npx prisma db seed` nhiều lần sẽ kích hoạt guard ở mục 5.1 và bỏ qua an toàn, tránh lỗi `Unique constraint failed` khi container khởi động lại (`docker-compose.yml` chạy `npx prisma migrate deploy && npx prisma db seed && node dist/main`).
 - **Tái nạp sạch ở Local (`--force`)**: Khi cần làm mới toàn bộ dữ liệu mẫu:
   ```bash
   cd apps/api
@@ -158,13 +160,15 @@ Tệp seed được khai báo trong `apps/api/package.json` (`"prisma": { "seed"
   ```
 - **Quy tắc cho Integration Tests**: Các test suite (`*.int-spec.ts`) **tuyệt đối không phụ thuộc, sửa hoặc xóa dữ liệu seed**; mỗi suite phải tự sinh dữ liệu riêng bằng UUID/prefix và chỉ xóa bản ghi do chính mình tạo trong `afterAll` bằng điều kiện `where`.
 
-### 5.3. Tách biệt Seed Dữ Liệu Mẫu (Development) & Master Data (Production)
+### 5.3. Đề xuất tách biệt Seed Development & Production *(Chưa triển khai trong code hiện tại)*
 
-| Tiêu chí | Môi trường Development / Test | Môi trường Production (Supabase) |
+> **Ghi chú trạng thái**: Trong `apps/api/prisma/seed.ts` hiện tại **chưa có** nhánh kiểm tra `NODE_ENV === 'production'` để loại bỏ dữ liệu demo (`demo@brewlite.test`, voucher mẫu) và **chưa chuyển** sang `upsert`. Do đó, **không chạy `seed.ts` với `--force` hoặc trên DB Production đang có dữ liệu chưa đủ sản phẩm/công thức** vì lệnh `deleteMany()` sẽ xóa sạch các bảng. Bảng dưới đây là **thiết kế mục tiêu đề xuất** cho đợt hoàn thiện tiếp theo:
+
+| Tiêu chí | Môi trường Development / Test *(Hiện có)* | Môi trường Production (Supabase) *(Đề xuất — Chưa triển khai)* |
 | :--- | :--- | :--- |
 | **Mục đích** | Tạo đầy đủ dữ liệu mẫu để dev, demo và kiểm thử UI/API (tài khoản `demo@brewlite.test`, 10 món, nguyên liệu test hết hàng `stock = 40`, voucher mẫu). | Chỉ khởi tạo **Master Data / Bootstrap Config** cần thiết để hệ thống vận hành lần đầu (tài khoản Admin gốc, danh mục chuẩn, cấu hình cơ bản). |
-| **Cách thức ghi DB** | Cho phép reset toàn bộ bằng `prisma migrate reset --force` hoặc `npm run prisma:seed -- --force`. | **Cấm tuyệt đối** dùng `deleteMany()` không `where` hay `--force`. Bắt buộc dùng `prisma.<model>.upsert({ where: { uniqueKey }, update: {}, create: { ... } })`. |
-| **Quản lý Secret** | Dùng giá trị fallback dev-only trong `.env.example` (`change-me-dev-only`). | Bắt buộc nạp `ADMIN_EMAIL` và `ADMIN_PASSWORD` mạnh từ Secret Manager (Render/GitHub Secrets); kiểm tra `if (process.env.NODE_ENV === 'production')` để bỏ qua dữ liệu demo. |
+| **Cách thức ghi DB** | Hiện dùng `deleteMany()` + `create()` / `createMany()` khi DB trống/thiếu hoặc có `--force`. | Đề xuất chặn `deleteMany()` và `--force` khi `NODE_ENV === 'production'`; thay bằng `prisma.<model>.upsert({ where: { uniqueKey }, update: {}, create: { ... } })`. |
+| **Quản lý Secret & Demo data** | Hiện dùng fallback dev-only trong `.env.example` (`change-me-dev-only`) và luôn tạo `demo@brewlite.test`. | Đề xuất bắt buộc `ADMIN_EMAIL` / `ADMIN_PASSWORD` từ Secret Manager và bọc nhánh tạo dữ liệu demo trong `if (process.env.NODE_ENV !== 'production')`. |
 
 ---
 

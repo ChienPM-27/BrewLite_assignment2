@@ -1,5 +1,5 @@
 @startuml class-diagram
-title BrewLite Assignment 2 — Biểu Đồ Lớp Hệ Thống (Core Entities, Enums & Services)
+title BrewLite Assignment 2 — Biểu Đồ Lớp Hệ Thống (Prisma Entities, Enums & Core Services)
 
 top to bottom direction
 skinparam shadowing false
@@ -41,8 +41,8 @@ skinparam note {
 ' ==========================================================
 ' 1. ENUMS TRẠNG THÁI & PHÂN LOẠI (Prisma Schema)
 ' ==========================================================
-package "Domain Enums" #F1F5F9 {
-    enum Role <<UserRole>> {
+package "Domain Enums (Prisma Schema)" #F1F5F9 {
+    enum Role {
         CUSTOMER
         ADMIN
         BARISTA
@@ -88,30 +88,22 @@ package "Domain Enums" #F1F5F9 {
 }
 
 ' ==========================================================
-' 2. CORE ENTITIES & INHERITANCE HIERARCHY
+' 2. CORE ENTITIES (KHỚP TRỰC TIẾP schema.prisma)
 ' ==========================================================
 package "Core Domain Entities (PostgreSQL / Prisma Models)" #F8FAFC {
-    abstract class BaseEntity {
+    class User <<model>> {
         + id : String <<PK, cuid>>
-    }
-
-    abstract class AuditableEntity {
-        + createdAt : DateTime
-        + updatedAt : DateTime
-    }
-
-    class User <<entity>> {
         + email : String <<UK>>
         + passwordHash : String
         + fullName : String?
         + role : Role = CUSTOMER
         + loyaltyPoints : Int = 0
-        --
-        + isAdmin() : Boolean
-        + addLoyaltyPoints(points: Int) : void
+        + createdAt : DateTime
+        + updatedAt : DateTime
     }
 
-    class Product <<entity>> {
+    class Product <<model>> {
+        + id : String <<PK, cuid>>
         + categoryId : String? <<FK>>
         + name : String
         + basePrice : Decimal(12,0)
@@ -119,11 +111,12 @@ package "Core Domain Entities (PostgreSQL / Prisma Models)" #F8FAFC {
         + stock : Int <<deprecated CR-01>>
         + version : Int <<deprecated CR-01>>
         + isAvailable : Boolean = true
-        --
-        + isSellable() : Boolean
+        + createdAt : DateTime
+        + updatedAt : DateTime
     }
 
-    class Promotion <<entity>> {
+    class Promotion <<model>> {
+        + id : String <<PK, cuid>>
         + code : String <<UK>>
         + description : String?
         + discountPercent : Int?
@@ -133,12 +126,12 @@ package "Core Domain Entities (PostgreSQL / Prisma Models)" #F8FAFC {
         + startDate : DateTime
         + endDate : DateTime?
         + isActive : Boolean = true
-        --
-        + isApplicable(subtotal: Decimal, now: DateTime) : Boolean
-        + computeDiscount(subtotal: Decimal) : Decimal
+        + createdAt : DateTime
+        + updatedAt : DateTime
     }
 
-    class Order <<entity>> {
+    class Order <<model>> {
+        + id : String <<PK, cuid>>
         + orderNumber : Int <<UK, autoincrement>>
         + userId : String <<FK>>
         + promotionId : String? <<FK>>
@@ -149,23 +142,22 @@ package "Core Domain Entities (PostgreSQL / Prisma Models)" #F8FAFC {
         + pointsEarned : Int = 0
         + paidAt : DateTime?
         + version : Int = 0 <<OptimisticLock>>
-        --
-        + canTransitionTo(next: OrderStatus) : Boolean
-        + calculateFinalAmount() : Decimal
+        + createdAt : DateTime
+        + updatedAt : DateTime
     }
 
-    class OrderItem <<entity>> {
+    class OrderItem <<model>> {
+        + id : String <<PK, cuid>>
         + orderId : String <<FK>>
         + productId : String <<FK>>
         + size : ProductSize = M
         + quantity : Int = 1
         + unitPrice : Decimal(12,0)
         + lineTotal : Decimal(12,0)
-        --
-        + calculateLineTotal(toppingTotal: Decimal) : Decimal
     }
 
-    class Payment <<entity>> {
+    class Payment <<model>> {
+        + id : String <<PK, cuid>>
         + orderId : String <<FK>>
         + idempotencyKey : String <<UK>>
         + requestHash : String?
@@ -178,20 +170,16 @@ package "Core Domain Entities (PostgreSQL / Prisma Models)" #F8FAFC {
         + gatewayTransactionNo : String?
         + paymentUrl : String?
         + createdAt : DateTime
-        --
-        + isCompleted() : Boolean
-        + matchesRequestHash(hash: String) : Boolean
     }
 
-    class LoyaltyTransaction <<entity>> {
+    class LoyaltyTransaction <<model>> {
+        + id : String <<PK, cuid>>
         + userId : String <<FK>>
         + orderId : String? <<FK>>
         + points : Int
         + type : LoyaltyTransactionType
         + reason : String
         + createdAt : DateTime
-        --
-        + getSignedPoints() : Int
     }
 }
 
@@ -199,6 +187,17 @@ package "Core Domain Entities (PostgreSQL / Prisma Models)" #F8FAFC {
 ' 3. CORE APPLICATION SERVICES (NestJS Providers)
 ' ==========================================================
 package "Core Backend Services (NestJS)" #EFF6FF {
+    class PrismaClient <<external>> {
+        + $connect() : Promise<void>
+        + $disconnect() : Promise<void>
+        + $transaction(fn) : Promise<T>
+    }
+
+    class PrismaService <<service>> {
+        + onModuleInit() : Promise<void>
+        + onModuleDestroy() : Promise<void>
+    }
+
     class AuthService <<service>> {
         + register(dto: RegisterDto) : Promise<AuthResult>
         + login(dto: LoginDto) : Promise<AuthResult>
@@ -236,17 +235,9 @@ package "Core Backend Services (NestJS)" #EFF6FF {
 }
 
 ' ==========================================================
-' 4. QUAN HỆ KẾ THỪA (INHERITANCE)
+' 4. QUAN HỆ KẾ THỪA THỰC TẾ TRONG CODE (INHERITANCE)
 ' ==========================================================
-BaseEntity <|-- AuditableEntity
-BaseEntity <|-- OrderItem
-BaseEntity <|-- Payment
-BaseEntity <|-- LoyaltyTransaction
-
-AuditableEntity <|-- User
-AuditableEntity <|-- Product
-AuditableEntity <|-- Promotion
-AuditableEntity <|-- Order
+PrismaClient <|-- PrismaService : extends
 
 ' ==========================================================
 ' 5. QUAN HỆ GIỮA CÁC ENTITY (COMPOSITION, AGGREGATION, ASSOCIATION)
@@ -269,8 +260,10 @@ Order "0..1" <-- "0..*" LoyaltyTransaction : awards / refunds <
 ' ==========================================================
 OrdersService --> PricingService : calculates prices
 OrdersService --> PromotionsService : validates voucher
+OrdersService --> PrismaService : uses $transaction
 PaymentsService --> OrderService : transitions status
 PaymentsService --> LoyaltyService : awards points
+PaymentsService --> PrismaService : reads/writes payments
 
 AuthService ..> User : manages
 ProductDetailService ..> Product : queries
