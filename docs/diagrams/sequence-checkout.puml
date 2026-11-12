@@ -1,0 +1,106 @@
+
+@startuml
+title Sequence Diagram - Checkout & Payment (BrewLite)
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam sequence {
+    ActorBackgroundColor #DCEBFA
+    ParticipantBackgroundColor #DCEBFA
+    LifeLineBorderColor #555555
+    LifeLineBackgroundColor white
+    ArrowColor #333333
+    ParticipantBorderColor #4A6FA5
+}
+skinparam roundcorner 10
+autonumber
+
+actor Customer as C
+participant "Next.js UI" as UI
+participant "NestJS API" as API
+database "PostgreSQL" as DB
+participant "Payment Gateway" as GW
+
+== 1. Checkout ==
+
+C -> UI : Chọn sản phẩm và đặt hàng
+UI -> API : Gửi yêu cầu checkout
+API -> DB : Kiểm tra sản phẩm và tồn kho
+
+alt Dữ liệu hợp lệ
+    API -> DB : Tạo Order PENDING\nvà lưu chi tiết đơn hàng
+    DB --> API : Tạo đơn hàng thành công
+    API --> UI : Trả về Order ID
+    UI --> C : Hiển thị thông tin đơn hàng
+else Dữ liệu không hợp lệ
+    API --> UI : Thông báo lỗi
+    UI --> C : Hiển thị lỗi
+end
+
+== 2. Payment ==
+
+C -> UI : Chọn phương thức thanh toán
+UI -> API : POST /payments\nIdempotency-Key
+
+API -> DB : Kiểm tra Idempotency-Key
+
+alt Key đã tồn tại
+    DB --> API : Trả về kết quả cũ
+    API --> UI : Trả kết quả thanh toán
+else Key mới
+    API -> DB : Tạo Payment PENDING
+    API -> GW : Gửi yêu cầu thanh toán
+
+    alt Mock Gateway
+        GW --> API : SUCCESS hoặc FAILED
+    else VNPay Sandbox
+        GW --> UI : Trả Payment URL
+        UI --> C : Chuyển đến VNPay
+        C -> GW : Thực hiện thanh toán
+        GW -> API : Gửi IPN Callback
+        API -> API : Kiểm tra chữ ký HMAC-SHA512
+        GW --> UI : Return URL
+        UI -> API : Kiểm tra trạng thái thanh toán
+        API --> UI : Trả trạng thái hiện tại
+    end
+
+    alt Thanh toán thành công
+        API -> DB : Payment SUCCESS\nOrder PAID
+        API --> UI : Thanh toán thành công
+        UI --> C : Hiển thị xác nhận đơn hàng
+    else Thanh toán thất bại
+        API -> DB : Payment FAILED\nOrder PAYMENT_FAILED
+        API --> UI : Thanh toán thất bại
+        UI --> C : Thông báo lỗi và cho phép thử lại
+    end
+end
+
+== 3. Retry Payment ==
+
+opt Khách hàng thử thanh toán lại
+    C -> UI : Chọn thanh toán lại
+    UI -> API : Gửi yêu cầu với Idempotency-Key mới
+    API -> DB : Tạo Payment mới PENDING
+    API --> UI : Tiếp tục thanh toán
+end
+
+note right of GW
+    Mock Gateway:
+    - Mặc định SUCCESS
+    - X-Mock-Outcome: FAILED
+    - Chỉ dùng ngoài Production
+
+    VNPay Sandbox:
+    - Thanh toán qua Payment URL
+    - Backend xác minh chữ ký IPN
+    - Secret chỉ lưu ở Backend
+end note
+
+note over API, DB
+    Idempotency:
+    - Cùng key + cùng nội dung: trả kết quả cũ
+    - Cùng key + khác nội dung: HTTP 409
+    - Không xử lý giao dịch hai lần
+end note
+
+@enduml
