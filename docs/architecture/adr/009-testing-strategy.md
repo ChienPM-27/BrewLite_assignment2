@@ -16,10 +16,11 @@ Hiện trạng trước ADR này:
 
 | Tầng | Đang có | Vấn đề |
 | :--- | :--- | :--- |
-| Unit API | 13 file `*.spec.ts` (pricing, order-state, payments, promotions, auth, roles guard…) | Không có ngưỡng coverage; tên test không gắn Test Case ID → khó truy vết AC. |
-| Integration API | `test/jest-int.json`, `test-helper.ts`, job `integration` trên CI với PostgreSQL service | Mới có `health.int-spec.ts`, `sample.int-spec.ts`; phần lớn TC mức Integration trong [test-scenarios.md](../../requirements/test-scenarios.md) chưa có file. |
+| Unit API | 14 file `*.spec.ts` (13 trong `apps/api/src` + `test/health.spec.ts`): pricing, order-state, orders, cancel, history, payments, promotions, loyalty, auth, roles guard… `payments.service.spec.ts` đã có case cho IPN VNPay (RspCode `97`/`99`/`01`/`04`/`02`, đơn đã `CANCELLED`/`PAID`) nhưng chạy với Prisma mock. | Không có ngưỡng coverage; chỉ `pricing.service.spec.ts` gắn Test Case ID trong tên test → khó truy vết AC. `VnpayGatewayService` (tạo URL, `verifyIpnSignature`) chưa có file spec. |
+| Integration API | `test/jest-int.json`, `test-helper.ts`, job `integration-test-api` trên CI với PostgreSQL service | Mới có `health.int-spec.ts`, `sample.int-spec.ts`, `pricing.service.int-spec.ts`; phần lớn TC mức Integration trong các file `fr-*.md` chưa có file test. |
+| Concurrency API | `test/orders-concurrency.e2e-spec.ts` (5 test: đặt đơn song song, cùng `Idempotency-Key` song song, hủy đơn sai trạng thái), `test/concurrency.ts` | **Không job CI nào chạy** (`ci.yml` chỉ gọi `test:ci`, `npm test`, `test:int`) → bất biến "không âm kho" (NFR-03) chưa được CI chặn. |
 | Unit/Component Web | Vitest + jsdom, 2 file test | Chưa phủ `useCartStore` (TC-CART-*) và trang checkout. |
-| E2E | Chưa có (`tests/` chưa tồn tại) | Không có bằng chứng luồng đầu-cuối; chưa có chiến lược cho cổng thanh toán ngoài (VNPay Sandbox). |
+| E2E | Chưa có (`tests/` chỉ có `.gitkeep`) | Không có bằng chứng luồng đầu-cuối; chưa có chiến lược cho cổng thanh toán ngoài (VNPay Sandbox). |
 
 Ràng buộc kỹ thuật cần giải quyết:
 1. **Cổng thanh toán ngoài**: VNPay Sandbox cần URL HTTPS công khai để nhận IPN và phụ thuộc mạng → không thể chạy ổn định trên GitHub Actions runner.
@@ -52,10 +53,10 @@ Chúng tôi chọn **Phương án A — Kim tự tháp kiểm thử 3 tầng + g
 
 | Tầng | Tỷ lệ mục tiêu (số test) | Công cụ | Quy ước file | Lệnh chạy | Phạm vi kiểm |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Unit — API** | ~60% | Jest + ts-jest, Prisma/ConfigService mock | `apps/api/src/**/*.spec.ts` (cạnh file code) | `npm run test:ci` | Logic thuần: `PricingService`, `assertTransition`/order-state, Promotions, Loyalty, Auth (băm bcrypt), RolesGuard, VNPay helper (ký/verify `vnp_SecureHash`). |
+| **Unit — API** | ~60% | Jest + ts-jest, Prisma/ConfigService mock | `apps/api/src/**/*.spec.ts` (cạnh file code) | `npm run test:ci` | Logic thuần: `PricingService`, `assertTransition`/order-state, Promotions, Loyalty, Auth (băm bcrypt), RolesGuard, `PaymentsService` (mock + nhánh IPN VNPay), `VnpayGatewayService` (ký URL, `verifyIpnSignature` với secret giả — cần viết mới). |
 | **Unit/Component — Web** | ~15% | Vitest + React Testing Library + jsdom | `apps/web/src/**/*.test.ts(x)` hoặc `__tests__/` | `npm test` (trong `apps/web`) | `useCartStore` (gộp dòng, tổng tiền, persist `localStorage`), giới hạn 3 topping, giữ giỏ khi thanh toán lỗi, chỉ `clearCart` khi `PAID`. |
-| **Integration — API** | ~20% | Jest + Supertest + PostgreSQL 16 thật (CI service / docker compose) | `apps/api/test/**/*.int-spec.ts` | `npm run test:int` | Contract HTTP qua `createNestTestApp()`: mã 200/201/400/401/403/404/409, JWT guard, transaction tạo đơn + trừ kho, Idempotency-Key, IPN sai chữ ký bị từ chối, quyền xem lịch sử đơn. |
-| **Concurrency** | (bổ sung) | Jest e2e config / script ts-node | `apps/api/test/*.e2e-spec.ts`, `test/concurrency.ts` | `npm run test:e2e` | `TC-ORDER-03`: bắn đơn song song không âm kho. |
+| **Integration — API** | ~20% | Jest + Supertest + PostgreSQL 16 thật (CI service / docker compose) | `apps/api/**/*.int-spec.ts` (`test/` hoặc cạnh module, theo `testRegex` của `jest-int.json`) | `npm run test:int` | Contract HTTP qua `createNestTestApp()`: mã 200/201/400/401/403/404/409, JWT guard, transaction tạo đơn + trừ kho, Idempotency-Key, quyền sở hữu đơn/giao dịch (mục G3), `GET /payments/vnpay/ipn` trên DB thật (mục G11). |
+| **Concurrency — API** | (bổ sung) | Jest (`test/jest-e2e.json`) + Supertest + PostgreSQL thật; script `ts-node` chạy tay | `apps/api/test/*.e2e-spec.ts`; `test/concurrency.ts` | `npm run test:e2e`; `npm run test:concurrency` | `TC-ORDER-03`: bắn đơn song song không âm kho; cùng `Idempotency-Key` song song chỉ tạo 1 payment. Tên script `test:e2e` là của Jest, **không phải** E2E Playwright. Hiện chưa chạy trên CI (mục G10). |
 | **E2E — hệ thống** | ~5% | Playwright (Chromium, viewport mobile) | `tests/e2e/**/*.spec.ts`, cấu hình `tests/playwright.config.ts`, `tests/package.json` | `npm --prefix tests run e2e` | Luồng người dùng thật qua trình duyệt (mục 3.4). |
 
 ### 3.2. Quy ước Test Case ID (bắt buộc để truy vết)
@@ -66,20 +67,26 @@ Chúng tôi chọn **Phương án A — Kim tự tháp kiểm thử 3 tầng + g
   it('[TC-PAY-03] gửi 2 lần cùng Idempotency-Key chỉ tạo 1 payment', async () => { ... });
   ```
 - Một test có thể mang nhiều ID (`[TC-CART-04][TC-PAY-05]`). Không đặt ID ngoài các nhóm trên; ID mới phải thêm vào `test-scenarios.md` trong cùng PR.
+- Nguồn gốc của ID là dòng `(Test: TC-…, <loại>)` ngay sau từng AC trong `fr-*.md`; `test-scenarios.md` là bảng tổng hợp và phải khớp với các file đó.
+- Loại test của một ID là một trong: `Unit`, `Component`, `Integration`, `Concurrency`, `E2E`, `Review`. ID loại `Review` (ví dụ `TC-ORDER-39` của `AC-16.4`) và ID được chính file FR ghi là chưa chạy được (ví dụ `TC-ORDER-46` của `AC-16.11`, phụ thuộc API hủy đơn `PAID` chưa có) **không phải test tự động**: vẫn tính cho G1, không tính cho G2, và ghi rõ loại ở ma trận truy vết.
 
 ### 3.3. Ngưỡng tối thiểu (Quality Gates)
 
 | # | Chỉ số | Ngưỡng | Cách đo / nơi chặn |
 | :--- | :--- | :--- | :--- |
-| G1 | AC có Test Case ID | **100%** AC trong 7 file `fr-*.md` | Review PR + `test-scenarios.md`; `traceability-matrix.md` không có ô trống. |
-| G2 | FR mức **Must** có test tự động chạy trên CI | **100%** (mỗi FR Must ≥ 1 test Unit/Integration/E2E thực thi) | Ma trận truy vết cột "Test ID" trỏ tới file test tồn tại. |
-| G3 | Endpoint API trong FR | Mỗi endpoint ≥ **1 case thành công + 1 case lỗi** (4xx) ở tầng Integration | `*.int-spec.ts`. |
+| G1 | AC có Test Case ID | **100%** AC trong 7 file `fr-*.md` (mọi loại test, kể cả `Review`) | Review PR + `test-scenarios.md`; `traceability-matrix.md` không có ô trống. |
+| G2 | FR mức **Must** có test tự động chạy trên CI | **100%** (mỗi FR Must ≥ 1 test Unit/Component/Integration/Concurrency/E2E thực thi; ID loại `Review` không tính) | Ma trận truy vết cột "Test ID" trỏ tới file test tồn tại. |
+| G3 | Endpoint API trong FR | Mỗi endpoint ≥ **1 case thành công + 1 case lỗi** (4xx) ở tầng Integration. Endpoint nhận ID tài nguyên của khách (`GET /orders/:id`, `POST /orders/:id/cancel`, `POST /payments` với `orderId`, `GET /payments/:id`) phải có thêm **1 case khách B dùng ID của khách A → `404`** (đúng hành vi code hiện tại; ví dụ `AC-22.4`/`TC-HIST-18`). | `*.int-spec.ts`. |
 | G4 | Line coverage Unit — API toàn cục | **≥ 60%** | `jest --coverage` + `coverageThreshold` trong `apps/api/package.json`. |
 | G5 | Coverage module nghiệp vụ lõi (`pricing`, `orders`, `payments`, `promotions`, `auth`) | **Lines ≥ 80%, Branches ≥ 70%** | `coverageThreshold` theo đường dẫn. |
 | G6 | Coverage `apps/web/src/store/**` | **Lines ≥ 80%** | `vitest run --coverage` (`@vitest/coverage-v8`). |
-| G7 | Kết quả CI | **0 test fail**, không `it.skip`/`it.only` trên `main` | Branch protection: 3 job hiện có + job `e2e` (mục 3.5). ESLint rule `no-only-tests` hoặc review. |
-| G8 | E2E | **100% kịch bản E2E-01..03 xanh**; tổng thời gian ≤ 5 phút | Playwright report trên CI (artifact). |
-| G9 | Thời gian toàn pipeline CI | ≤ 10 phút | Lịch sử GitHub Actions, ghi ở `docs/evidence/ci.md`. |
+| G7 | Kết quả CI | **0 test fail**, không `it.skip`/`it.only` trên `main` | Branch protection: 3 job hiện có + job `e2e` (mục 3.5), cả 4 đều là required check trên mọi PR vào `main`. ESLint rule `no-only-tests` hoặc review. |
+| G8 | E2E | **100% kịch bản E2E-01..03 xanh**; tổng thời gian ≤ 5 phút (mục tiêu, chưa đo) | Playwright report trên CI (artifact). |
+| G9 | Thời gian toàn pipeline CI | ≤ 10 phút (mục tiêu, chưa đo) | Lịch sử GitHub Actions, ghi ở `docs/evidence/ci.md`. |
+| G10 | Concurrency (`TC-ORDER-03`, NFR-03) | `orders-concurrency.e2e-spec.ts` xanh trên CI | Thêm bước `npm run test:e2e` vào job `integration-test-api` (dùng chung PostgreSQL service). Trước khi có bước này, G10 **chưa được CI chặn** và phải chạy tay trước khi merge PR đụng `orders`/`payments`. |
+| G11 | Callback VNPay (`GET /payments/vnpay/ipn`) | Tầng Integration, DB thật, ký bằng `VNPAY_HASH_SECRET` giả: sai chữ ký → `97`; không tìm thấy giao dịch → `01`; lệch số tiền → `04`; IPN lặp → `02` và không cộng điểm lần hai; IPN thành công khi đơn đã `CANCELLED` → `00`, đơn giữ nguyên, payment ghi `failureReason` "Cần hoàn tiền thủ công" | `*.int-spec.ts` của module `payments`. Các mã trên là hành vi hiện có của `PaymentsService.handleVnpayIpn` (đang chỉ có unit test với Prisma mock). `fr-payment.md` chưa có AC/TC ID cho VNPay nên G1/G2 không nhìn thấy phần này — xem mục 5.4. |
+
+> **Retry và flaky**: Jest và Vitest không cấu hình retry, nên một test Unit/Integration/Concurrency fail là CI đỏ. Chỉ Playwright có `retries: 1` (mục 3.4); test xanh sau retry không chặn merge nhưng bắt buộc có issue.
 
 > **Lộ trình bật gate coverage (G4–G6)**: Sprint 2A đo baseline bằng `test:cov` ngay buổi sáng 13/11; nếu baseline thấp hơn ngưỡng, Leader bật `coverageThreshold` bằng **giá trị baseline** (không cho phép giảm) và nâng dần lên ngưỡng trên trước khi release `v1.0.0`. Coverage chỉ là chỉ số phụ — G1/G2 (mọi AC có test) là gate chính.
 
@@ -87,13 +94,17 @@ Chúng tôi chọn **Phương án A — Kim tự tháp kiểm thử 3 tầng + g
 
 | ID | Luồng | AC/TC liên quan | Kỳ vọng |
 | :--- | :--- | :--- | :--- |
-| `E2E-01` | Đăng nhập → menu → chi tiết món, chọn size + topping → thêm giỏ → đặt đơn → thanh toán (`MOCK`, `SUCCESS`) → màn hình xác nhận | FR-02, 07–08, 10–11, 13, 17, 20 | Đơn `PAID`, giỏ được xóa, tổng tiền UI = tổng do backend tính. |
-| `E2E-02` | Như E2E-01 nhưng thanh toán `X-Mock-Outcome: FAILED` | FR-19, `AC-12.2`, `TC-CART-04` | Đơn `PAYMENT_FAILED`, **giỏ giữ nguyên**, hiển thị thông báo lỗi. |
-| `E2E-03` | Sau E2E-01 → mở "Đơn hàng của tôi" → xem chi tiết đơn vừa đặt | FR-21..22 | Đơn mới nhất hiển thị đúng trạng thái và lịch sử trạng thái. |
+| `E2E-01` | Đăng ký user mới + đăng nhập → menu → chi tiết món, chọn size + topping → thêm giỏ → đặt đơn → trang `/checkout/payment`, cổng `MOCK` (mặc định), bấm nút "Mô phỏng: … thành công" trong `MockGatewayModal` → `/orders/<id>?paid=1` | FR-02, 07–08, 10–11, 13, 17, 20 | Đơn `PAID`, giỏ được xóa, tổng tiền UI = tổng do backend tính. |
+| `E2E-02` | User mới riêng; như E2E-01 đến trang thanh toán, bấm nút mô phỏng lỗi trong `MockGatewayModal` (UI tự gửi `X-Mock-Outcome: FAILED`) → sau khi kiểm tra, bấm "Hủy đơn hàng này" | FR-19, `AC-12.2`, `TC-CART-04` | Response `POST /payments` có `status = FAILED`; vẫn ở trang thanh toán và hiển thị thông báo lỗi; **giỏ giữ nguyên**. Sau khi hủy: về `/cart`, giỏ vẫn còn món, `/orders` hiện đơn với nhãn "Đã hủy" (hủy đơn hoàn nguyên liệu nên E2E-02 không để lại đơn giữ kho). |
+| `E2E-03` | Chạy tiếp ngay sau E2E-01, **cùng file và cùng `test.describe.serial`**, dùng lại user và đơn của E2E-01 → mở "Đơn hàng của tôi" → xem chi tiết đơn vừa đặt | FR-21..22, `AC-21.13`, `TC-HIST-13` | Đơn vừa đặt đứng đầu danh sách với nhãn "Đã thanh toán"; trang `/orders/<id>` hiển thị đúng trạng thái hiện tại ("Đã thanh toán"), các món, tổng tiền bằng `finalAmount` và lần thanh toán `SUCCESS`. Không kiểm tra lịch sử chuyển trạng thái (FR-22 chỉ hiển thị trạng thái hiện tại, API không trả `statusHistory`). |
+
+Phạm vi E2E-02 dừng ở "thất bại → giữ giỏ → hủy đơn". Nhánh **thử lại** (`PAYMENT_FAILED → PENDING → PAID`, không trừ kho lần hai, không cộng điểm khi thất bại) được kiểm ở tầng dưới: `payments.service.spec.ts` (đã có) và `AC-16.7`/`TC-ORDER-42`, `AC-15.11`/`TC-ORDER-35` (Integration). Kỳ vọng về kho theo code và `fr-order.md` quy tắc 8: đơn `PAYMENT_FAILED` **vẫn giữ** nguyên liệu, chỉ hoàn khi `CANCELLED`.
 
 Nguyên tắc E2E:
-- `baseURL` lấy từ biến `E2E_BASE_URL` (mặc định `http://localhost:3000`) → cùng bộ test chạy được local (docker compose), CI và URL production (Sprint 2B, chỉ chạy E2E-01/03 với tài khoản test riêng).
-- Mỗi lần chạy tự đăng ký user mới (`e2e_<uuid>@example.test`), không dùng tài khoản admin/seed.
+- `baseURL` lấy từ biến `E2E_BASE_URL` (mặc định `http://localhost:3000`) → cùng bộ test chạy được local (docker compose), CI và URL production (Sprint 2B).
+- Trên production chỉ chạy E2E-01/03 (`npm --prefix tests run e2e -- --grep-invert "E2E-02"`): khi `NODE_ENV=production`, API bỏ qua `X-Mock-Outcome` và cổng `MOCK` luôn trả `SUCCESS`, nên E2E-02 không thể tạo được thanh toán lỗi ở đó. Thanh toán lỗi/hủy trên production được kiểm thủ công qua VNPay Sandbox (mục 3.5).
+- Mỗi lần chạy tự đăng ký user mới (`e2e_<uuid>@example.test`) ở mọi môi trường, không dùng tài khoản admin/seed. E2E-01 và E2E-03 dùng chung một user trong cùng nhóm serial; E2E-02 dùng user riêng. Không file spec nào phụ thuộc file khác.
+- E2E-03 phụ thuộc E2E-01 chỉ trong phạm vi một nhóm `test.describe.serial`: Playwright bỏ qua E2E-03 nếu E2E-01 fail và khi retry thì chạy lại cả nhóm từ đầu.
 - Chọn phần tử bằng `getByRole`/`getByTestId`, không dùng CSS selector theo class Tailwind.
 - CI: `retries: 1`, `trace: 'on-first-retry'`, `screenshot: 'only-on-failure'`; test chỉ xanh sau retry được ghi là **flaky** và phải tạo issue sửa — không được tăng retries để che lỗi.
 - **Một lệnh** (local):
@@ -105,13 +116,20 @@ Nguyên tắc E2E:
 
 | Môi trường | Unit | Integration | E2E | Cổng thanh toán |
 | :--- | :--- | :--- | :--- | :--- |
-| Local (dev) | ✅ | ✅ PostgreSQL của `docker compose` | ✅ `docker compose up` | `MOCK` (`NODE_ENV != production` → nhận `X-Mock-Outcome`) |
-| CI (GitHub Actions) | ✅ job `api`, `web` | ✅ job `integration` (postgres:16-alpine service) | ✅ job `e2e` mới: build compose stack → Playwright | `MOCK`; VNPay chỉ test helper ký/verify với `VNPAY_HASH_SECRET` **giả** sinh trong test, không gọi mạng ngoài |
-| Production (Vercel + Render + Supabase) | — | — | Smoke + E2E-01/03 sau deploy (Sprint 2B) | **VNPay Sandbox** qua HTTPS: thành công, thất bại/hủy, sai chữ ký, IPN lặp — kiểm thủ công, lưu ở `docs/evidence/smoke-test.md` |
+| Local (dev) | ✅ | ✅ PostgreSQL của `docker compose` | ✅ `docker compose up` (cần `POSTGRES_PASSWORD`, `JWT_SECRET` trong `.env`) | `MOCK` (service `backend` mặc định `NODE_ENV=development` → nhận `X-Mock-Outcome`) |
+| CI (GitHub Actions) | ✅ job `lint-and-test-api`, `lint-and-test-web` | ✅ job `integration-test-api` (postgres:16-alpine service) | ✅ job `e2e` mới: build compose stack → Playwright | `MOCK`; VNPay chỉ test ký/verify và IPN với `VNPAY_HASH_SECRET` **giả** sinh trong test, không gọi mạng ngoài |
+| Production (Vercel + Render + Supabase) | — | — | Smoke + E2E-01/03 sau deploy (Sprint 2B), thanh toán bằng cổng `MOCK` (code vẫn nhận `MOCK` ở production và luôn trả `SUCCESS`, theo FR-17) | **VNPay Sandbox** qua HTTPS: thành công, thất bại/hủy, sai chữ ký, IPN lặp — kiểm thủ công, lưu ở `docs/evidence/smoke-test.md` |
 
 ### 3.6. Quy tắc dữ liệu test
 
-Áp dụng nguyên văn [apps/api/test/README.md](../../../apps/api/test/README.md): dữ liệu cô lập bằng `generateTestIdentifier()`, không đụng seed data, dọn đúng ID đã ghi trong `TestDataRegistry`, cấm `deleteMany()`/`TRUNCATE` không điều kiện, integration chạy `--runInBand`. Test **không bao giờ** trỏ vào `DATABASE_URL` production; secret trong CI chỉ là giá trị giả dạng `change-me-dev-only`.
+**Unit / Integration / Concurrency (API)** — áp dụng nguyên văn [apps/api/test/README.md](../../../apps/api/test/README.md): dữ liệu cô lập bằng `generateTestIdentifier()`, không đụng seed data, dọn đúng ID đã ghi trong `TestDataRegistry`, cấm `deleteMany()`/`TRUNCATE` không điều kiện, integration chạy `--runInBand`. Các tầng này **không bao giờ** kết nối tới `DATABASE_URL` production; secret trong CI chỉ là giá trị giả dạng `change-me-dev-only`.
+
+**E2E Playwright** — không kết nối DB trực tiếp ở bất kỳ môi trường nào, chỉ thao tác qua web. Vì API hiện không có endpoint tạo sản phẩm/nguyên liệu hay xóa user/đơn, E2E có các giới hạn sau và đây là **ngoại lệ so với quy tắc dữ liệu test số 8 của kế hoạch** (không đọc seed, tự dọn dữ liệu), cần Leader chấp thuận khi duyệt ADR:
+
+- E2E đặt món có sẵn trong seed (chỉ đọc danh mục, không sửa/xóa bản ghi seed) và phải chọn món không dùng nguyên liệu mà seed cố ý để tồn kho thấp.
+- Mỗi lần chạy để lại 2 user test, 1 đơn `PAID` (E2E-01, đã trừ nguyên liệu và cộng điểm) và 1 đơn `CANCELLED` (E2E-02, đã hoàn nguyên liệu). Đơn `PAID` không dọn được vì chưa có API hủy đơn `PAID`.
+- Local và CI: service `backend` của `docker-compose.yml` chạy `prisma db seed` mỗi lần khởi động, và `seed.ts` xóa toàn bộ dữ liệu rồi tạo lại → dữ liệu E2E không tích lũy qua các lần dựng stack.
+- Production: không seed lại, nên mỗi lần chạy E2E-01/03 ghi thật vào DB production qua API: thêm 1 user, 1 đơn `PAID` nằm trong danh sách đơn chờ xử lý của admin, và trừ tồn kho thật. Chỉ chạy **một lần sau mỗi lần deploy**; người chạy ghi lại `orderNumber` của đơn test vào `docs/evidence/production-check.md`.
 
 ---
 
@@ -124,8 +142,9 @@ Nguyên tắc E2E:
 - Cùng bộ Playwright tái sử dụng cho production check và video demo.
 
 ### 4.2. Điểm hạn chế & Thách thức (Negative / Cons / Trade-offs)
-- **Khoảng trống mock ↔ VNPay thật**: CI không chứng minh được redirect/IPN thật của VNPay. Bù lại bằng unit test ký/verify với vector cố định và smoke test thủ công có evidence; rủi ro còn lại được chấp nhận trong phạm vi Assignment 2.
-- Job `e2e` cần build cả web + API trên runner → tăng thời gian CI 3–5 phút; nếu vượt G9, chỉ chạy `e2e` trên PR có nhãn `e2e` và trên `main`.
+- **Khoảng trống mock ↔ VNPay thật**: CI không chứng minh được redirect/IPN thật của VNPay và không có E2E tự động nào đi qua nhánh VNPay của UI (trang `/payment/vnpay-return`, thời điểm `clearCart`). Bù lại bằng unit test IPN đã có, test ký/verify và Integration IPN theo G11, cùng smoke test thủ công có evidence; rủi ro còn lại được chấp nhận trong phạm vi Assignment 2.
+- **E2E trên production tạo dữ liệu thật** (user, đơn `PAID`, trừ kho) và không dọn được (mục 3.6). Chấp nhận vì kế hoạch Sprint 2B yêu cầu E2E xanh trên production; giới hạn bằng cách chỉ chạy một lần sau mỗi lần deploy.
+- Job `e2e` cần build cả web + API trên runner → ước tính tăng thời gian CI 3–5 phút (chưa đo). Job này luôn là required check; nếu vượt G9 thì tối ưu (cache trình duyệt, cache Docker layer) hoặc nâng ngưỡng G9 bằng cách cập nhật ADR này — không chuyển `e2e` thành job chạy theo nhãn, vì required check không chạy sẽ treo PR còn bỏ required thì mất gate G7.
 - Thêm phụ thuộc mới (`@playwright/test`, `@vitest/coverage-v8`) và trình duyệt Chromium trên runner (dùng cache `~/.cache/ms-playwright`).
 - Ngưỡng coverage có thể dẫn tới viết test "cho đủ số" → G1/G2 (AC-driven) là gate chính, coverage chỉ là chỉ số phụ.
 - File chung (`ci.yml`, `apps/api/package.json`, `docker-compose.yml`) do Leader sở hữu → các thay đổi cấu hình ở mục 5.2 phải do Minh Chiến thực hiện.
@@ -146,9 +165,11 @@ Nguyên tắc E2E:
 | Việc | Người làm | File |
 | :--- | :--- | :--- |
 | Dựng `tests/` (Playwright), viết E2E-01..03, script `e2e` | Quang Huy | `tests/e2e/**`, `tests/package.json`, `tests/playwright.config.ts` |
-| Thêm job `e2e` vào CI, bật `coverageThreshold` theo lộ trình 3.3 | Minh Chiến | `.github/workflows/ci.yml`, `apps/api/package.json` |
-| Thêm `@vitest/coverage-v8` + `data-testid` cho các nút checkout | Owner web của từng trang | `apps/web/**` |
-| Đổi tên test hiện có sang dạng `[TC-xxx-nn] ...`, bổ sung `*.int-spec.ts` cho TC mức Integration | Owner từng module | `apps/api/src/modules/<module>/**`, `apps/api/test/**` |
+| Thêm job `e2e` vào CI và đặt làm required check; thêm bước `npm run test:e2e` vào job `integration-test-api` (G10); bật `coverageThreshold` theo lộ trình 3.3 | Minh Chiến | `.github/workflows/ci.yml`, `apps/api/package.json` |
+| Thêm `@vitest/coverage-v8` + `data-testid` cho các nút checkout (hiện `apps/web/src` chưa có `data-testid` nào ngoài file test mẫu) | Owner web của từng trang | `apps/web/**` |
+| Đổi tên test hiện có sang dạng `[TC-xxx-nn] ...`, bổ sung `*.int-spec.ts` cho TC mức Integration và case quyền sở hữu theo G3 | Owner từng module | `apps/api/src/modules/<module>/**`, `apps/api/test/**` |
+| Viết spec cho `VnpayGatewayService` và Integration test IPN theo G11; bổ sung AC + TC ID cho VNPay vào `fr-payment.md` | Gia Kiệt (`SP2-07`) | `apps/api/src/modules/payments/**`, `docs/requirements/fr-payment.md` |
+| Đồng bộ `test-scenarios.md` với các TC ID đã khai báo trong `fr-*.md` (hiện mới có 41 ID; thiếu ví dụ `TC-HIST-13`, `TC-ORDER-42`) | Quang Huy | `docs/requirements/test-scenarios.md` |
 
 ### 5.3. Review truy vết container (Deployment Diagram → code)
 
@@ -159,10 +180,22 @@ Kết quả rà [deployment-production.puml](../../diagrams/deployment-productio
 | Web Application Server (Next.js PWA, Vercel) | `apps/web/**`, `apps/web/public/manifest.webmanifest`, `apps/web/Dockerfile` | Vitest (`apps/web`), E2E-01..03 | ⚠️ Sơ đồ ghi `manifest.json`, file thật là `manifest.webmanifest` → Minh Chiến. |
 | NestJS REST API Gateway (Render, port 4000) | `apps/api/src/main.ts`, `app.module.ts`, `modules/**`, `apps/api/Dockerfile` | Unit + Integration API | ✅ |
 | Mock Payment Gateway | `apps/api/src/modules/payments/mock-gateway.service.ts` | `payments.service.spec.ts`, TC-PAY-01..05 | ✅ |
-| *(thiếu trên sơ đồ)* VNPay Sandbox (bên thứ ba) | `apps/api/src/modules/payments/vnpay/**` (`VNPAY_URL`, `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET`, `VNPAY_RETURN_URL`) | Unit helper ký/verify; smoke test thủ công | ⚠️ Sơ đồ chưa có node VNPay Sandbox + luồng IPN `Render ← VNPay`; note env của Render và `.env.example` thiếu biến `VNPAY_*` → Minh Chiến (sơ đồ, `.env.example`). [ADR-005](005-mock-payment-idempotency.md) vẫn mô tả chỉ có mock → Gia Kiệt cập nhật. |
+| *(thiếu trên sơ đồ)* VNPay Sandbox (bên thứ ba) | `apps/api/src/modules/payments/vnpay/**` (`VNPAY_URL`, `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET`, `VNPAY_RETURN_URL`) | `payments.service.spec.ts` (nhánh IPN, Prisma mock); chưa có spec cho `VnpayGatewayService`; smoke test thủ công | ⚠️ Sơ đồ chưa có node VNPay Sandbox + luồng IPN `Render ← VNPay`; note env của Render và `.env.example` thiếu biến `VNPAY_*` → Minh Chiến (sơ đồ, `.env.example`). [ADR-005](005-mock-payment-idempotency.md) vẫn mô tả chỉ có mock → Gia Kiệt cập nhật. |
 | Health Monitoring Endpoint (`GET /api/v1/health`) | `apps/api/src/app.controller.ts` (`@Get('health')`) | `apps/api/test/health.spec.ts`, `health.int-spec.ts`, smoke test CD | ✅ |
 | Render Log Stream | Log stdout NestJS + `common/interceptors`, `common/filters` | — (kiểm thủ công trên Render) | ✅ (không cần test tự động) |
 | Supabase PostgreSQL + PgBouncer | `apps/api/prisma/schema.prisma` (`DATABASE_URL` pooler 6543, `DIRECT_URL` 5432), migrations | Job `integration` (`prisma migrate deploy` trên PostgreSQL 16) | ✅ |
 | CI Workflow (`ci.yml`, 3 job) | `.github/workflows/ci.yml` | Chính nó | ⚠️ Tên job thật là "Backend (NestJS) - Lint, Unit Test & Build"… khác nhãn `api/web/integration` trên sơ đồ và ADR-008 → thống nhất tên để cấu hình required checks → Minh Chiến. |
 | CD Workflow (`cd.yml`) + GHCR | Chưa có `.github/workflows/cd.yml` | — | ⏳ Kế hoạch Sprint 2A (`cd.yml`) — đúng tiến độ, ghi nhận để kiểm lại cuối Sprint 2A. |
 | Local Docker Compose (FE/BE/DB) | `docker-compose.yml` | Dùng làm môi trường E2E local | ✅ |
+
+### 5.4. Sai lệch docs ↔ code ghi nhận khi viết ADR
+
+Các điểm dưới đây ảnh hưởng tới kỳ vọng của test; ADR này lấy **code hiện tại** làm chuẩn và gửi comment PR cho người sở hữu (không sửa file người khác).
+
+| Sai lệch | Code hiện tại | Gửi cho |
+| :--- | :--- | :--- |
+| `srs.md` dòng FR-19 ghi "hoàn trả tồn kho nguyên liệu" khi thanh toán lỗi | `PaymentsService` không đụng tồn kho; đơn `PAYMENT_FAILED` vẫn giữ nguyên liệu, chỉ hoàn khi `CANCELLED` (`CancelOrderService`, khớp `fr-order.md` quy tắc 8) | Minh Chiến (`srs.md`) |
+| `fr-payment.md` không có AC/TC ID nào cho VNPay | Code có `gateway: VNPAY`, `GET /payments/vnpay/ipn`, trang `/payment/vnpay-return` | Gia Kiệt |
+| Bảng truy vết của `fr-payment.md` gán FR-19 → `TC-PAY-03`, FR-20 → `TC-PAY-04` | Trong `test-scenarios.md`, `TC-PAY-03`/`04` là case Idempotency-Key (`AC-18.2`/`18.3`); lỗi thanh toán là `TC-PAY-05` | Gia Kiệt |
+| `mock-gateway.service.ts` tham chiếu `TC-PAY-19` trong comment | ID này chưa có trong `fr-payment.md` và `test-scenarios.md` | Gia Kiệt |
+| Quy tắc 10–11 của kế hoạch: không hard-code credential, không phụ thuộc tunnel | `payments.service.ts` còn hard-code email/mật khẩu trang quản trị VNPay Sandbox, in ra log khi khởi động và trả qua `GET /payments/vnpay/tunnel-info` (không có guard); còn gọi `http://tunnel:20241/metrics` dù `docker-compose.yml` không có service `tunnel` | Gia Kiệt, Minh Chiến |
