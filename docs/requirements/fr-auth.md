@@ -36,7 +36,7 @@ Cung cấp cơ chế đăng ký tài khoản thành viên mới, đăng nhập x
 - **Độ ưu tiên (MoSCoW)**: Must Have
 - **Mô tả nghiệp vụ**: Bảo vệ các tuyến API nghiệp vụ nhạy cảm thông qua `JwtAuthGuard` và kiểm tra quyền hạn theo vai trò người dùng thông qua `RolesGuard` kết hợp decorator `@Roles(...)`.
 - **Tiêu chí chấp nhận (Acceptance Criteria - AC)**:
-  - `AC-03.1`: **Thiếu token xác thực** ➔ Khi gọi các API đặt hàng (`/api/v1/orders/**`), thanh toán (`/api/v1/payments/**`) hoặc quản trị (`/api/v1/admin/**`, `/api/v1/auth/admin-ping`) mà không có header `Authorization: Bearer <token>`, hệ thống từ chối với mã lỗi **`401 Unauthorized`**.
+  - `AC-03.1`: **Thiếu token xác thực** ➔ Khi gọi các API người dùng như `/api/v1/orders/**`, `POST /api/v1/payments`, `GET /api/v1/payments/:id`, `/api/v1/admin/**`, `/api/v1/auth/admin-ping` mà không có header `Authorization: Bearer <token>`, hệ thống từ chối với mã lỗi **`401 Unauthorized`**. Ngoại trừ webhook công khai từ đối tác cổng thanh toán (`GET /api/v1/payments/vnpay/ipn`) được xác thực bằng chữ ký số HMAC-SHA512 thay vì JWT.
   - `AC-03.2`: **Token hết hạn hoặc không hợp lệ** ➔ Khi gửi token đã hết hạn (`exp`), sai chữ ký (`JWT_SECRET`) hoặc bị chỉnh sửa payload, `JwtStrategy` từ chối với mã lỗi **`401 Unauthorized`**; đồng thời phía Frontend (`api-client.ts`) tự động xóa token trong `localStorage` và chuyển hướng về `/auth/login?next=...`.
   - `AC-03.3`: **Phân quyền theo vai trò (RBAC)** ➔ Các tuyến quản trị (`/api/v1/admin/orders/**`, `/api/v1/auth/admin-ping`) yêu cầu vai trò `ADMIN` (hoặc `BARISTA` theo cấu hình route); nếu người dùng có vai trò `CUSTOMER` truy cập, `RolesGuard` từ chối với mã lỗi **`403 Forbidden`**.
 
@@ -46,6 +46,8 @@ Cung cấp cơ chế đăng ký tài khoản thành viên mới, đăng nhập x
 
 | Mã FR | Tên yêu cầu | Use-Case liên kết | Sơ đồ liên quan | Code / API Endpoint | Test Case ID |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `FR-01` | Đăng ký tài khoản thành viên | `UC-AUTH-01`, `UC-ORDER-PAYMENT` | `docs/diagrams/activity-e2e.puml` | `POST /api/v1/auth/register` (`AuthController`, `AuthService`, `RegisterDto`) | `TC-AUTH-01`, `TC-AUTH-02`, `TC-AUTH-03` |
-| `FR-02` | Đăng nhập & cấp phát JWT | `UC-AUTH-02`, `UC-ORDER-PAYMENT` | `docs/diagrams/activity-e2e.puml` | `POST /api/v1/auth/login` (`AuthController`, `AuthService`, `useAuthStore`) | `TC-AUTH-04`, `TC-AUTH-05` |
-| `FR-03` | Bảo vệ tuyến API & phân quyền RBAC | `UC-AUTH-03`, `UC-ORDER-PAYMENT` | `docs/diagrams/activity-e2e.puml`, `docs/diagrams/sequence-checkout.puml` | `JwtAuthGuard`, `JwtStrategy`, `RolesGuard`, `@Roles()` | `TC-AUTH-06`, `TC-AUTH-07` |
+| `FR-01` | Đăng ký tài khoản thành viên (`AC-01.1`..`01.4`) | `UC-ORDER-PAYMENT` ([usecase-order-payment.md](./usecase-order-payment.md)) | [docs/diagrams/activity-e2e.puml](../diagrams/activity-e2e.puml) | `POST /api/v1/auth/register` (`AuthController`, `AuthService`, `RegisterDto`) | `TC-AUTH-01`, `TC-AUTH-02`, `TC-AUTH-03`, `TC-AUTH-08` |
+| `FR-02` | Đăng nhập & cấp phát JWT (`AC-02.1`..`02.3`) | `UC-ORDER-PAYMENT` ([usecase-order-payment.md](./usecase-order-payment.md)) | [docs/diagrams/activity-e2e.puml](../diagrams/activity-e2e.puml) | `POST /api/v1/auth/login` (`AuthController`, `AuthService`, `useAuthStore`) | `TC-AUTH-04`, `TC-AUTH-05`, `TC-AUTH-09` |
+| `FR-03` | Bảo vệ tuyến API & phân quyền RBAC (`AC-03.1`..`03.3`) | `UC-ORDER-PAYMENT` ([usecase-order-payment.md](./usecase-order-payment.md)) | [docs/diagrams/activity-e2e.puml](../diagrams/activity-e2e.puml) | `JwtAuthGuard`, `JwtStrategy`, `RolesGuard`, `@Roles()` | `TC-AUTH-06`, `TC-AUTH-07`, `TC-AUTH-10` |
+
+> *(Ghi chú: Các Test Case ID trên được đối chiếu từ `docs/requirements/test-scenarios.md`. Toàn bộ kịch bản kiểm thử tự động chi tiết và minh chứng kiểm thử của module Auth & Cart sẽ được hoàn thiện tại Sprint 2 theo nhiệm vụ SP2-05).*

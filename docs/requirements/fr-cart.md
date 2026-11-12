@@ -35,7 +35,7 @@ Quản lý trạng thái giỏ hàng của khách hàng phía Client bằng thư
 - **Mô tả nghiệp vụ**: Lưu trữ giỏ hàng bền vững trong bộ nhớ trình duyệt và bảo toàn trạng thái giỏ hàng khi gặp lỗi xác thực, hết nguyên liệu hoặc lỗi cổng thanh toán.
 - **Tiêu chí chấp nhận (Acceptance Criteria - AC)**:
   - `AC-12.1`: **Lưu trữ bền vững qua `localStorage`** ➔ Dữ liệu giỏ hàng được lưu dưới khóa `brewlite_cart_storage` (`version: 2`). Khi khách hàng tải lại trang (reload F5), chuyển trang đăng nhập hoặc mở lại ứng dụng PWA, toàn bộ danh sách món và số lượng vẫn được giữ nguyên.
-  - `AC-12.2`: **Bắt buộc giữ nguyên giỏ hàng khi lỗi** ➔ Khi tạo đơn bị từ chối (`400 Bad Request` do thiếu nguyên liệu) hoặc khi thanh toán thất bại / khách hủy giao dịch (`OrderStatus.PAYMENT_FAILED`), hệ thống **BẮT BUỘC GIỮ NGUYÊN GIỎ HÀNG** cùng thông tin `pendingOrderId` và `pendingCartSignature` (`computeCartSignature`) để khách hàng có thể thử lại thanh toán hoặc đổi món ngay mà không phải chọn lại từ đầu.
+  - `AC-12.2`: **Bắt buộc giữ nguyên giỏ hàng khi lỗi** ➔ Khi tạo đơn bị từ chối (`400 Bad Request` do thiếu nguyên liệu) hoặc khi thanh toán thất bại / khách hủy giao dịch (`OrderStatus.PAYMENT_FAILED` hoặc chưa hoàn tất trên VNPay), hệ thống **BẮT BUỘC GIỮ NGUYÊN GIỎ HÀNG** cùng thông tin `pendingOrderId` và `pendingCartSignature` (`computeCartSignature`) để khách hàng có thể thử lại thanh toán hoặc đổi món ngay mà không phải chọn lại từ đầu.
   - `AC-12.3`: **Chỉ làm sạch giỏ hàng khi hoàn tất thanh toán** ➔ Hành động xóa sạch giỏ hàng (`useCartStore.clearCart()`) chỉ được phép gọi duy nhất sau khi đơn hàng đã chuyển sang trạng thái đã thanh toán thành công (`OrderStatus.PAID`).
 
 ---
@@ -44,6 +44,8 @@ Quản lý trạng thái giỏ hàng của khách hàng phía Client bằng thư
 
 | Mã FR | Tên yêu cầu | Use-Case liên kết | Sơ đồ liên quan | Code / API Endpoint | Test Case ID |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `FR-10` | Thêm, sửa, xóa món trong giỏ hàng | `UC-03` (Quản lý giỏ hàng), `UC-ORDER-PAYMENT` | `docs/diagrams/activity-e2e.puml` | `useCartStore` (`addItem`, `updateItem`, `updateQuantity`, `removeItem`), `EditCartItemModal` | `TC-CART-01`, `TC-CART-02` |
-| `FR-11` | Tính tổng tiền giỏ hàng tự động | `UC-03` (Quản lý giỏ hàng), `UC-ORDER-PAYMENT` | `docs/diagrams/activity-e2e.puml` | `useCartStore` (`totalAmount`, `badgeCount`), `apps/web/src/app/cart/page.tsx` | `TC-CART-03` |
-| `FR-12` | Lưu trữ bền vững & Giữ giỏ khi lỗi thanh toán | `UC-ORDER-PAYMENT` (Đặt và thanh toán) | `docs/diagrams/activity-e2e.puml`, `docs/diagrams/sequence-checkout.puml` | `useCartStore` (`persist`, `computeCartSignature`, `clearCart`), `apps/web/src/app/checkout/**` | `TC-CART-04` |
+| `FR-10` | Thêm, sửa, xóa món trong giỏ hàng (`AC-10.1`..`10.3`) | `UC-ORDER-PAYMENT` ([usecase-order-payment.md](./usecase-order-payment.md)) | [docs/diagrams/activity-e2e.puml](../diagrams/activity-e2e.puml) | `useCartStore` (`addItem`, `updateItem`, `updateQuantity`, `removeItem`), `EditCartItemModal` | `TC-CART-01`, `TC-CART-02`, `TC-CART-05` |
+| `FR-11` | Tính tổng tiền giỏ hàng tự động (`AC-11.1`..`11.2`) | `UC-ORDER-PAYMENT` ([usecase-order-payment.md](./usecase-order-payment.md)) | [docs/diagrams/activity-e2e.puml](../diagrams/activity-e2e.puml) | `useCartStore` (`totalAmount`, `badgeCount`), `apps/web/src/app/cart/page.tsx` | `TC-CART-03`, `TC-CART-06` |
+| `FR-12` | Lưu trữ bền vững & Giữ giỏ khi lỗi thanh toán (`AC-12.1`..`12.3`) | `UC-ORDER-PAYMENT` ([usecase-order-payment.md](./usecase-order-payment.md)) | [docs/diagrams/activity-e2e.puml](../diagrams/activity-e2e.puml) | `useCartStore` (`persist`, `computeCartSignature`, `clearCart`), `apps/web/src/app/checkout/**` | `TC-CART-04`, `TC-CART-07`, `TC-CART-08` |
+
+> *(Ghi chú: Các Test Case ID trên được đối chiếu từ `docs/requirements/test-scenarios.md`. Toàn bộ kịch bản kiểm thử tự động chi tiết và minh chứng kiểm thử của module Auth & Cart sẽ được hoàn thiện tại Sprint 2 theo nhiệm vụ SP2-05).*
