@@ -18,8 +18,8 @@ state PAID #F0FDF4 : Đã thanh toán thành công\n- Đã tích lũy điểm lo
 state PREPARING #EFF6FF : Đang pha chế\n- Barista đang chuẩn bị đồ uống
 state READY #FAF5FF : Đồ uống đã sẵn sàng\n- Mời khách tới quầy nhận
 state COMPLETED #F0FDF4 : Hoàn tất đơn hàng\n- Khách đã nhận đồ uống\n(Trạng thái kết thúc)
-state PAYMENT_FAILED #FEF2F2 : Thanh toán thất bại\n- Cổng mock báo lỗi\n- Giữ nguyên đơn & giỏ
-state CANCELLED #F3F4F6 : Đã hủy đơn hàng\n- Hoàn trả lại tồn kho\n(Trạng thái kết thúc)
+state PAYMENT_FAILED #FEF2F2 : Thanh toán thất bại\n- Gateway báo lỗi\n- Giữ nguyên đơn & giỏ
+state CANCELLED #F3F4F6 : Đã hủy đơn hàng\n- Hoàn nguyên liệu theo snapshot\n(Trạng thái kết thúc)
 
 ' 1. Ba chuyển tiếp từ PENDING
 PENDING --> PAID : [1] Thanh toán thành công\n(POST /api/v1/payments -> SUCCESS)
@@ -28,7 +28,7 @@ PENDING --> CANCELLED : [3] Khách tự hủy đơn\n(POST /api/v1/orders/:id/ca
 
 ' 2. Hai chuyển tiếp từ PAID
 PAID --> PREPARING : [4] Barista nhận đơn\n(Bắt đầu pha chế)
-PAID --> CANCELLED : [5] Hủy đơn / Hoàn tiền\n(Sự cố pha chế hoặc hết nguyên liệu)
+PAID --> CANCELLED : [5] Hủy đơn đã PAID\n(API chưa có trong MVP)
 
 ' 3. Một chuyển tiếp từ PREPARING
 PREPARING --> READY : [6] Pha chế xong\n(Đồ uống đặt tại quầy chờ lấy)
@@ -47,12 +47,13 @@ CANCELLED --> [*]
 note right of CANCELLED
     **Quy tắc bảo vệ (assertTransition):**
     * Đúng chính xác 9 chuyển tiếp hợp lệ.
-    * Mọi chuyển tiếp khác (ví dụ: COMPLETED -> *,
-      CANCELLED -> *, PENDING -> COMPLETED)
-      đều bị hàm assertTransition() ném lỗi
-      **409 ConflictException**.
-    * Khi hủy đơn (CANCELLED): Hoàn trả tồn kho
-      cho Product & Topping.
+    * Mọi chuyển tiếp nghiệp vụ khác ngoài 9 chuyển tiếp
+      được khai báo đều bị assertTransition() từ chối
+      với lỗi 409 ConflictException.
+    * Khi hủy PENDING / PAYMENT_FAILED: hoàn nguyên liệu
+      theo snapshot order_ingredient_usages trong cùng transaction.
+    * PAID -> CANCELLED hợp lệ về state machine nhưng chưa có API;
+      hoàn tiền thực tế / thu hồi điểm nằm ngoài phạm vi MVP.
 end note
 
 @enduml

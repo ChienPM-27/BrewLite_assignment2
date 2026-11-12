@@ -1,0 +1,41 @@
+
+@startuml usecase-order-payment
+' SP1-06 — Use-case "Đặt và thanh toán" (Task 1.3)
+title UC-ORD-01 — Đặt và thanh toán
+
+left to right direction
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor #FFFBEB
+  BorderColor #2B6CB0
+}
+
+actor "Khách hàng\n(đã đăng nhập)" as Customer
+actor "Cổng thanh toán\n(Mock / VNPay)" as Gateway
+
+rectangle "BrewLite" {
+  usecase "UC-ORD-01\nĐặt và thanh toán\n(FR-13..20)" as UC_Main
+  usecase "Xác thực JWT\n(FR-01..03)" as UC_Auth
+  usecase "Tạo đơn &\nkiểm tra tồn kho\n(FR-13, FR-14)" as UC_Create
+  usecase "Thanh toán\nqua cổng\n(FR-17..20)" as UC_Pay
+  usecase "Tích điểm thưởng\n(FR-15)" as UC_Points
+  usecase "Áp mã khuyến mãi\n(FR-15)" as UC_Promo
+  usecase "Thử lại thanh toán\n(FR-16, FR-17..20)" as UC_Retry
+  usecase "Hủy đơn\n(FR-14, FR-16)" as UC_Cancel
+}
+
+Customer --> UC_Main
+
+UC_Main ..> UC_Auth : <<include>>
+UC_Main ..> UC_Create : <<include>>
+UC_Main ..> UC_Pay : <<include>>
+
+UC_Promo ..> UC_Create : <<extend>>\n[khi nhập mã giảm giá]
+UC_Retry ..> UC_Pay : <<extend>>\n[khi thanh toán thất bại]
+UC_Points ..> UC_Pay : <<extend>>\n[khi thanh toán thành công]
+UC_Cancel ..> UC_Main : <<extend>>\n[khi khách hủy đơn]
+
+UC_Pay -- Gateway
+@enduml
