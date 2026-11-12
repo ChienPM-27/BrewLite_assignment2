@@ -1,0 +1,62 @@
+@startuml
+title BrewLite — Activity: Duyệt menu, xem chi tiết, chọn tùy chọn
+skinparam shadowing false
+|Khách hàng|
+start
+:Mở trang Menu;
+|Next.js Web|
+:Hiển thị loading;
+:Gửi GET /products;
+|NestJS API|
+:Truy vấn danh sách sản phẩm khả dụng;
+if (API thành công?) then (Có)
+  |Next.js Web|
+  if (Danh sách rỗng?) then (Có)
+    :Hiển thị empty state;
+    stop
+  else (Không)
+    :Hiển thị danh sách sản phẩm;
+  endif
+else (Không)
+  |Next.js Web|
+  :Hiển thị lỗi tải menu;
+  stop
+endif
+|Khách hàng|
+:Tìm kiếm / lọc danh mục\n(nếu có);
+|Next.js Web|
+if (Có kết quả phù hợp?) then (Có)
+  :Hiển thị danh sách đã lọc;
+else (Không)
+  :Thông báo không có kết quả;
+  stop
+endif
+|Khách hàng|
+:Chọn sản phẩm;
+|Next.js Web|
+:Gửi GET /products/:id;
+|NestJS API|
+if (Tìm thấy sản phẩm?) then (Có)
+  :Trả chi tiết sản phẩm;
+else (Không)
+  |Next.js Web|
+  :Thông báo không tìm thấy sản phẩm;
+  stop
+endif
+
+|Next.js Web|
+:Hiển thị thông tin chi tiết sản phẩm;
+
+if (Sản phẩm còn bán?) then (Có)
+  :Cho phép chọn size / topping;
+  |Khách hàng|
+  :Chọn size / topping;
+  |Next.js Web|
+  :Hiển thị tùy chọn đã chọn\nvà giá tạm tính;
+  :Cho phép thêm vào giỏ hàng;
+else (Không)
+  :Vô hiệu hóa nút thêm vào giỏ hàng;
+endif
+
+stop
+@enduml
