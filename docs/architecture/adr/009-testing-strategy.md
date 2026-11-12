@@ -103,33 +103,36 @@ Phạm vi E2E-02 dừng ở "thất bại → giữ giỏ → hủy đơn". Nhá
 Nguyên tắc E2E:
 - `baseURL` lấy từ biến `E2E_BASE_URL` (mặc định `http://localhost:3000`) → cùng bộ test chạy được local (docker compose), CI và URL production (Sprint 2B).
 - Trên production chỉ chạy E2E-01/03 (`npm --prefix tests run e2e -- --grep-invert "E2E-02"`): khi `NODE_ENV=production`, API bỏ qua `X-Mock-Outcome` và cổng `MOCK` luôn trả `SUCCESS`, nên E2E-02 không thể tạo được thanh toán lỗi ở đó. Thanh toán lỗi/hủy trên production được kiểm thủ công qua VNPay Sandbox (mục 3.5).
-- Mỗi lần chạy tự đăng ký user mới (`e2e_<uuid>@example.test`) ở mọi môi trường, không dùng tài khoản admin/seed. E2E-01 và E2E-03 dùng chung một user trong cùng nhóm serial; E2E-02 dùng user riêng. Không file spec nào phụ thuộc file khác.
+- Mỗi lần chạy có `runId` duy nhất; script setup tạo món, topping và nguyên liệu test riêng, trả về ID/tên để Playwright chọn đúng fixture. Playwright tự đăng ký user mới (`e2e_<runId>_<uuid>@example.test`) và ghi lại ID user/đơn đã tạo vào manifest của lượt chạy, không dùng tài khoản hay danh mục seed. E2E-01 và E2E-03 dùng chung một user trong cùng nhóm serial; E2E-02 dùng user riêng. Không file spec nào phụ thuộc file khác. Mỗi lần retry cũng phải ghi đầy đủ dữ liệu phát sinh để teardown dọn được.
 - E2E-03 phụ thuộc E2E-01 chỉ trong phạm vi một nhóm `test.describe.serial`: Playwright bỏ qua E2E-03 nếu E2E-01 fail và khi retry thì chạy lại cả nhóm từ đầu.
 - Chọn phần tử bằng `getByRole`/`getByTestId`, không dùng CSS selector theo class Tailwind.
 - CI: `retries: 1`, `trace: 'on-first-retry'`, `screenshot: 'only-on-failure'`; test chỉ xanh sau retry được ghi là **flaky** và phải tạo issue sửa — không được tăng retries để che lỗi.
-- **Một lệnh** (local):
+- **Một lệnh** (local; script được bổ sung ở `SP2-08`):
   ```bash
-  docker compose up -d --build && npm --prefix tests ci && npm --prefix tests run e2e
+  npm --prefix tests ci && npm --prefix tests run e2e:local
   ```
+  `e2e:local` dựng stack riêng bằng `tests/docker-compose.e2e.yml` (container, port và volume riêng), chờ API/Web sẵn sàng, chạy setup fixture → Playwright → teardown trong `finally`, rồi dừng stack test. Lệnh không dùng container/volume của môi trường dev và không chạy `prisma db seed`. Job E2E trên CI dùng cùng vòng đời; lỗi setup hoặc teardown phải làm lệnh/job thất bại.
 
 ### 3.5. Môi trường & cổng thanh toán theo từng tầng
 
 | Môi trường | Unit | Integration | E2E | Cổng thanh toán |
 | :--- | :--- | :--- | :--- | :--- |
-| Local (dev) | ✅ | ✅ PostgreSQL của `docker compose` | ✅ `docker compose up` (cần `POSTGRES_PASSWORD`, `JWT_SECRET` trong `.env`) | `MOCK` (service `backend` mặc định `NODE_ENV=development` → nhận `X-Mock-Outcome`) |
-| CI (GitHub Actions) | ✅ job `lint-and-test-api`, `lint-and-test-web` | ✅ job `integration-test-api` (postgres:16-alpine service) | ✅ job `e2e` mới: build compose stack → Playwright | `MOCK`; VNPay chỉ test ký/verify và IPN với `VNPAY_HASH_SECRET` **giả** sinh trong test, không gọi mạng ngoài |
-| Production (Vercel + Render + Supabase) | — | — | Smoke + E2E-01/03 sau deploy (Sprint 2B), thanh toán bằng cổng `MOCK` (code vẫn nhận `MOCK` ở production và luôn trả `SUCCESS`, theo FR-17) | **VNPay Sandbox** qua HTTPS: thành công, thất bại/hủy, sai chữ ký, IPN lặp — kiểm thủ công, lưu ở `docs/evidence/smoke-test.md` |
+| Local (dev) | ✅ | ✅ PostgreSQL dành cho integration test | Stack E2E riêng qua `e2e:local`, DB và fixture riêng (mục 3.6) | `MOCK` (`NODE_ENV=development` của API test → nhận `X-Mock-Outcome`) |
+| CI (GitHub Actions) | ✅ job `lint-and-test-api`, `lint-and-test-web` | ✅ job `integration-test-api` (postgres:16-alpine service) | Job `e2e` mới: build stack test riêng → setup fixture → Playwright → teardown, DB riêng cho từng job | `MOCK`; VNPay chỉ test ký/verify và IPN với `VNPAY_HASH_SECRET` **giả** sinh trong test, không gọi mạng ngoài |
+| Production (Vercel + Render + Supabase) | — | — | Smoke + E2E-01/03 sau deploy (Sprint 2B), dùng user/món/nguyên liệu test riêng và setup/teardown theo mục 3.6; cổng `MOCK` luôn trả `SUCCESS`, theo FR-17 | **VNPay Sandbox** qua HTTPS: thành công, thất bại/hủy, sai chữ ký, IPN lặp — kiểm thủ công với cùng quy tắc fixture riêng, lưu ở `docs/evidence/smoke-test.md` |
 
 ### 3.6. Quy tắc dữ liệu test
 
 **Unit / Integration / Concurrency (API)** — áp dụng nguyên văn [apps/api/test/README.md](../../../apps/api/test/README.md): dữ liệu cô lập bằng `generateTestIdentifier()`, không đụng seed data, dọn đúng ID đã ghi trong `TestDataRegistry`, cấm `deleteMany()`/`TRUNCATE` không điều kiện, integration chạy `--runInBand`. Các tầng này **không bao giờ** kết nối tới `DATABASE_URL` production; secret trong CI chỉ là giá trị giả dạng `change-me-dev-only`.
 
-**E2E Playwright** — không kết nối DB trực tiếp ở bất kỳ môi trường nào, chỉ thao tác qua web. Vì API hiện không có endpoint tạo sản phẩm/nguyên liệu hay xóa user/đơn, E2E có các giới hạn sau và đây là **ngoại lệ so với quy tắc dữ liệu test số 8 của kế hoạch** (không đọc seed, tự dọn dữ liệu), cần Leader chấp thuận khi duyệt ADR:
+**E2E Playwright** — trình duyệt chỉ thao tác qua web. Dữ liệu test được tạo và dọn bằng script setup/teardown quản trị riêng trong `tests/fixtures/**`, dùng Prisma phía Node.js; không thêm API chỉ phục vụ test và không đưa kết nối DB vào Playwright/browser.
 
-- E2E đặt món có sẵn trong seed (chỉ đọc danh mục, không sửa/xóa bản ghi seed) và phải chọn món không dùng nguyên liệu mà seed cố ý để tồn kho thấp.
-- Mỗi lần chạy để lại 2 user test, 1 đơn `PAID` (E2E-01, đã trừ nguyên liệu và cộng điểm) và 1 đơn `CANCELLED` (E2E-02, đã hoàn nguyên liệu). Đơn `PAID` không dọn được vì chưa có API hủy đơn `PAID`.
-- Local và CI: service `backend` của `docker-compose.yml` chạy `prisma db seed` mỗi lần khởi động, và `seed.ts` xóa toàn bộ dữ liệu rồi tạo lại → dữ liệu E2E không tích lũy qua các lần dựng stack.
-- Production: không seed lại, nên mỗi lần chạy E2E-01/03 ghi thật vào DB production qua API: thêm 1 user, 1 đơn `PAID` nằm trong danh sách đơn chờ xử lý của admin, và trừ tồn kho thật. Chỉ chạy **một lần sau mỗi lần deploy**; người chạy ghi lại `orderNumber` của đơn test vào `docs/evidence/production-check.md`.
+- **Dữ liệu riêng cho từng lượt chạy:** setup tạo `runId`, món, size, topping, công thức và nguyên liệu riêng với tiền tố `e2e_<runId>`. Tồn kho fixture đủ cho kịch bản và retry; không sử dụng món/nguyên liệu seed hay demo để tạo đơn test và không sửa/xóa các bản ghi đó. Playwright có thể xem menu chung nhưng chỉ chọn món thuộc fixture của lượt chạy. Manifest ghi chính xác ID đã tạo; Playwright bổ sung ID user, đơn và giao dịch phát sinh qua UI.
+- **Local và CI:** `tests/docker-compose.e2e.yml` dựng API/Web trên PostgreSQL riêng cho E2E, với container/port/volume tách khỏi dev và job integration. Chỉ chạy `prisma migrate deploy` trên DB test rồi setup fixture; không chạy seed toàn hệ thống và không dựa vào việc khởi động lại backend để reset dữ liệu.
+- **Production:** script quản trị chuẩn bị fixture riêng trên deployment HTTPS; Playwright chỉ đặt các món test dùng nguyên liệu test. E2E-01/03 và kiểm tra VNPay thủ công phải ghi `runId`, `orderNumber` và kết quả teardown vào `docs/evidence/production-check.md` / `docs/evidence/smoke-test.md`. Chỉ chạy sau deploy khi setup/teardown đã được triển khai và kiểm chứng ở local/CI; không dùng việc giới hạn số lần chạy để thay thế dọn dữ liệu.
+- **Dọn cả khi test lỗi hoặc retry:** teardown chạy trong `finally` sau khi các browser context đã đóng, kể cả đơn ở `PENDING`, `PAID`, `PAYMENT_FAILED` hoặc `CANCELLED`. Script xóa các bản ghi con (payment, lịch sử trạng thái, loyalty, usage, item/topping) theo đúng ID/quan hệ thuộc manifest trước khi xóa đơn, user và danh mục/nguyên liệu fixture theo thứ tự khóa ngoại. Xóa đơn `PAID` trong fixture không cần mở thêm API hủy `PAID`; tồn kho demo/khách hàng không bị trừ hay hoàn vì fixture dùng nguyên liệu riêng.
+- **Phạm vi truy cập:** credentials DB của script được cấu hình riêng ngoài repo và không in ra log hay truyền cho browser. Local/CI chỉ được trỏ tới DB test; cấu hình production dành riêng cho script quản trị fixture do Minh Chiến quản lý. Mọi thao tác xóa có điều kiện theo manifest; nếu một bản ghi fixture có tham chiếu từ dữ liệu ngoài lượt chạy thì dừng phần dọn liên quan và báo lỗi, không mở rộng điều kiện xóa.
+- **Bằng chứng hoàn tất:** sau teardown, kiểm tra không còn user/đơn/giao dịch và fixture của `runId`. Lỗi dọn dữ liệu phải làm lệnh/job thất bại và được ghi trong evidence; không ghi nhận E2E đạt khi còn dữ liệu test chưa dọn. Đây là kế hoạch hiện thực ở `SP2-08`; PR `SP1-08` này chỉ chốt ADR, chưa thêm script hay chạy E2E trên production.
 
 ---
 
@@ -143,7 +146,7 @@ Nguyên tắc E2E:
 
 ### 4.2. Điểm hạn chế & Thách thức (Negative / Cons / Trade-offs)
 - **Khoảng trống mock ↔ VNPay thật**: CI không chứng minh được redirect/IPN thật của VNPay và không có E2E tự động nào đi qua nhánh VNPay của UI (trang `/payment/vnpay-return`, thời điểm `clearCart`). Bù lại bằng unit test IPN đã có, test ký/verify và Integration IPN theo G11, cùng smoke test thủ công có evidence; rủi ro còn lại được chấp nhận trong phạm vi Assignment 2.
-- **E2E trên production tạo dữ liệu thật** (user, đơn `PAID`, trừ kho) và không dọn được (mục 3.6). Chấp nhận vì kế hoạch Sprint 2B yêu cầu E2E xanh trên production; giới hạn bằng cách chỉ chạy một lần sau mỗi lần deploy.
+- **Setup/teardown E2E cần thêm script quản trị fixture** và cấu hình DB theo môi trường (mục 3.6). Production vẫn tạo user/đơn test qua API, nhưng chỉ tác động món/nguyên liệu riêng của lượt chạy và phải dọn cả khi test lỗi; việc đối soát manifest và xử lý đúng thứ tự khóa ngoại làm tăng công việc ở `SP2-08`.
 - Job `e2e` cần build cả web + API trên runner → ước tính tăng thời gian CI 3–5 phút (chưa đo). Job này luôn là required check; nếu vượt G9 thì tối ưu (cache trình duyệt, cache Docker layer) hoặc nâng ngưỡng G9 bằng cách cập nhật ADR này — không chuyển `e2e` thành job chạy theo nhãn, vì required check không chạy sẽ treo PR còn bỏ required thì mất gate G7.
 - Thêm phụ thuộc mới (`@playwright/test`, `@vitest/coverage-v8`) và trình duyệt Chromium trên runner (dùng cache `~/.cache/ms-playwright`).
 - Ngưỡng coverage có thể dẫn tới viết test "cho đủ số" → G1/G2 (AC-driven) là gate chính, coverage chỉ là chỉ số phụ.
@@ -164,11 +167,12 @@ Nguyên tắc E2E:
 
 | Việc | Người làm | File |
 | :--- | :--- | :--- |
-| Dựng `tests/` (Playwright), viết E2E-01..03, script `e2e` | Quang Huy | `tests/e2e/**`, `tests/package.json`, `tests/playwright.config.ts` |
+| Dựng `tests/` (Playwright), viết E2E-01..03, script `e2e`/`e2e:local`, stack E2E riêng và setup/teardown fixture có manifest; kiểm chứng dọn dữ liệu khi test lỗi/retry | Quang Huy (`SP2-08`) | `tests/e2e/**`, `tests/fixtures/**`, `tests/docker-compose.e2e.yml`, `tests/package.json`, `tests/playwright.config.ts` |
 | Thêm job `e2e` vào CI và đặt làm required check; thêm bước `npm run test:e2e` vào job `integration-test-api` (G10); bật `coverageThreshold` theo lộ trình 3.3 | Minh Chiến | `.github/workflows/ci.yml`, `apps/api/package.json` |
 | Thêm `@vitest/coverage-v8` + `data-testid` cho các nút checkout (hiện `apps/web/src` chưa có `data-testid` nào ngoài file test mẫu) | Owner web của từng trang | `apps/web/**` |
 | Đổi tên test hiện có sang dạng `[TC-xxx-nn] ...`, bổ sung `*.int-spec.ts` cho TC mức Integration và case quyền sở hữu theo G3 | Owner từng module | `apps/api/src/modules/<module>/**`, `apps/api/test/**` |
 | Viết spec cho `VnpayGatewayService` và Integration test IPN theo G11; bổ sung AC + TC ID cho VNPay vào `fr-payment.md` | Gia Kiệt (`SP2-07`) | `apps/api/src/modules/payments/**`, `docs/requirements/fr-payment.md` |
+| Cấu hình credentials và tổ chức chạy script fixture trên production; lưu `runId`, đơn test và kết quả teardown sau E2E/manual VNPay | Minh Chiến (cấu hình/quản trị), Quang Huy (E2E), Gia Kiệt (manual VNPay) | Cấu hình môi trường ngoài repo; `docs/evidence/production-check.md`, `docs/evidence/smoke-test.md` |
 | Đồng bộ `test-scenarios.md` với các TC ID đã khai báo trong `fr-*.md` (hiện mới có 41 ID; thiếu ví dụ `TC-HIST-13`, `TC-ORDER-42`) | Quang Huy | `docs/requirements/test-scenarios.md` |
 
 ### 5.3. Review truy vết container (Deployment Diagram → code)
@@ -186,7 +190,7 @@ Kết quả rà [deployment-production.puml](../../diagrams/deployment-productio
 | Supabase PostgreSQL + PgBouncer | `apps/api/prisma/schema.prisma` (`DATABASE_URL` pooler 6543, `DIRECT_URL` 5432), migrations | Job `integration` (`prisma migrate deploy` trên PostgreSQL 16) | ✅ |
 | CI Workflow (`ci.yml`, 3 job) | `.github/workflows/ci.yml` | Chính nó | ⚠️ Tên job thật là "Backend (NestJS) - Lint, Unit Test & Build"… khác nhãn `api/web/integration` trên sơ đồ và ADR-008 → thống nhất tên để cấu hình required checks → Minh Chiến. |
 | CD Workflow (`cd.yml`) + GHCR | Chưa có `.github/workflows/cd.yml` | — | ⏳ Kế hoạch Sprint 2A (`cd.yml`) — đúng tiến độ, ghi nhận để kiểm lại cuối Sprint 2A. |
-| Local Docker Compose (FE/BE/DB) | `docker-compose.yml` | Dùng làm môi trường E2E local | ✅ |
+| Local Docker Compose (FE/BE/DB) | `docker-compose.yml` | Dev local; E2E dùng stack riêng `tests/docker-compose.e2e.yml` (mục 3.6) | ✅ cho dev; stack E2E riêng triển khai ở `SP2-08`. |
 
 ### 5.4. Sai lệch docs ↔ code ghi nhận khi viết ADR
 
