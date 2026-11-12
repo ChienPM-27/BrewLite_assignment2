@@ -36,20 +36,27 @@ endif
 |Next.js Web|
 :Gửi GET /products/:id;
 |NestJS API|
-if (Có chi tiết hợp lệ?) then (Có)
+if (Tìm thấy sản phẩm?) then (Có)
   :Trả chi tiết sản phẩm;
-else (Không: 404/lỗi/hết bán)
+else (Không)
   |Next.js Web|
-  :Thông báo sản phẩm không thể xem;
+  :Thông báo không tìm thấy sản phẩm;
   stop
 endif
+
 |Next.js Web|
-:Hiển thị chi tiết và tùy chọn;
-|Khách hàng|
-:Chọn size / topping;
-|Next.js Web|
-:Hiển thị tùy chọn đã chọn\nvà giá tạm tính;
+:Hiển thị thông tin chi tiết sản phẩm;
+
+if (Sản phẩm còn bán?) then (Có)
+  :Cho phép chọn size / topping;
+  |Khách hàng|
+  :Chọn size / topping;
+  |Next.js Web|
+  :Hiển thị tùy chọn đã chọn\nvà giá tạm tính;
+  :Cho phép thêm vào giỏ hàng;
+else (Không)
+  :Vô hiệu hóa nút thêm vào giỏ hàng;
+endif
 
 stop
 @enduml
-

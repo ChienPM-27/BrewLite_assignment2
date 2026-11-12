@@ -28,12 +28,12 @@
 #### 2.1.1. Tiêu chí chấp nhận (Acceptance Criteria)
 | Mã AC | Điều kiện kiểm thử | Kết quả mong đợi |
 |---|---|---|
-| AC-04.01 | Khách hàng truy cập trang Menu. | Hệ thống hiển thị danh sách danh mục sản phẩm. |
-| AC-04.02 | Khách hàng chọn một danh mục, ví dụ “Cà phê”. | Chỉ hiển thị các sản phẩm thuộc danh mục được chọn và đáp ứng quy tắc hiển thị của FR-05. |
-| AC-04.03 | Khách hàng chuyển sang danh mục khác. | Danh sách sản phẩm được cập nhật theo danh mục mới. |
-| AC-04.04 | Khách hàng chọn “Tất cả”. | Hệ thống hiển thị sản phẩm từ tất cả danh mục theo quy tắc FR-05. |
-| AC-04.05 | Danh mục được chọn không có sản phẩm phù hợp. | Hệ thống hiển thị thông báo không có sản phẩm. |
-| AC-04.06 | Không thể tải dữ liệu sản phẩm. | Hệ thống hiển thị thông báo lỗi và cho phép thử lại. |
+| AC-04.1 | Khách hàng truy cập trang Menu. | Hệ thống hiển thị danh sách danh mục sản phẩm. |
+| AC-04.2 | Khách hàng chọn một danh mục, ví dụ “Cà phê”. | Chỉ hiển thị các sản phẩm thuộc danh mục được chọn và đáp ứng quy tắc hiển thị của FR-05. |
+| AC-04.3 | Khách hàng chuyển sang danh mục khác. | Danh sách sản phẩm được cập nhật theo danh mục mới. |
+| AC-04.4 | Khách hàng chọn “Tất cả”. | Hệ thống hiển thị sản phẩm từ tất cả danh mục theo quy tắc FR-05. |
+| AC-04.5 | Danh mục được chọn không có sản phẩm phù hợp. | Hệ thống hiển thị thông báo không có sản phẩm. |
+| AC-04.6 | Không thể tải dữ liệu sản phẩm. | Hệ thống hiển thị thông báo lỗi và cho phép thử lại. |
 
 ### 2.2. FR-05: Xem danh sách món uống (Product Catalog Listing)
 - **MoSCoW**: Must Have
@@ -42,12 +42,12 @@
 #### 2.2.1. Tiêu chí chấp nhận (Acceptance Criteria)
 | Mã AC | Điều kiện kiểm thử | Kết quả mong đợi |
 |---|---|---|
-| AC-05.01 | Khách hàng truy cập trang Menu và API trả về danh sách sản phẩm hợp lệ. | Hệ thống hiển thị danh sách sản phẩm. |
-| AC-05.02 | Sản phẩm có đầy đủ thông tin tên, hình ảnh và giá cơ sở. | Các thông tin được hiển thị chính xác theo dữ liệu Backend cung cấp. |
-| AC-05.03 | Sản phẩm không đủ nguyên liệu theo định lượng công thức. | Sản phẩm không xuất hiện trong danh sách Menu. |
-| AC-05.04 | API trả về danh sách sản phẩm rỗng. | Hệ thống hiển thị thông báo không có sản phẩm. |
-| AC-05.05 | API gặp lỗi hoặc mất kết nối mạng. | Hệ thống hiển thị thông báo lỗi và cho phép thử lại. |
-| AC-05.06 | Khách hàng chọn một sản phẩm có thể đặt hàng. | Hệ thống chuyển đến trang chi tiết của sản phẩm tương ứng. |
+| AC-05.1 | Khách hàng truy cập trang Menu và API trả về danh sách sản phẩm hợp lệ. | Hệ thống hiển thị danh sách sản phẩm. |
+| AC-05.2 | Sản phẩm có đầy đủ thông tin tên, hình ảnh và giá cơ sở. | Các thông tin được hiển thị chính xác theo dữ liệu Backend cung cấp. |
+| AC-05.3 | Sản phẩm không đủ nguyên liệu theo định lượng công thức. | Sản phẩm không xuất hiện trong danh sách Menu. |
+| AC-05.4 | API trả về danh sách sản phẩm rỗng. | Hệ thống hiển thị thông báo không có sản phẩm. |
+| AC-05.5 | API gặp lỗi hoặc mất kết nối mạng. | Hệ thống hiển thị thông báo lỗi và cho phép thử lại. |
+| AC-05.6 | Khách hàng chọn một sản phẩm có thể đặt hàng. | Hệ thống chuyển đến trang chi tiết của sản phẩm tương ứng. |
 
 ### 2.3. FR-06: Tìm kiếm món theo tên (Product Search)
 - **MoSCoW**: Should Have
@@ -56,12 +56,12 @@
 #### 2.3.1. Tiêu chí chấp nhận (Acceptance Criteria)
 | Mã AC | Điều kiện kiểm thử | Kết quả mong đợi |
 |---|---|---|
-| AC-06.01 | Khách hàng nhập từ khóa “cà phê”. | Hệ thống hiển thị các sản phẩm có tên phù hợp với từ khóa. |
-| AC-06.02 | Khách hàng nhập “CA PHE” thay cho “cà phê”. | Kết quả tìm kiếm tương đương, không phân biệt chữ hoa/thường và dấu tiếng Việt. |
-| AC-06.03 | Khách hàng nhập từ khóa không khớp với sản phẩm nào. | Hệ thống hiển thị thông báo không tìm thấy sản phẩm phù hợp. |
-| AC-06.04 | Khách hàng xóa toàn bộ từ khóa tìm kiếm. | Hệ thống hiển thị lại danh sách sản phẩm theo danh mục hiện tại. |
-| AC-06.05 | Khách hàng chọn danh mục “Cà phê” và nhập từ khóa “sữa”. | Chỉ hiển thị các sản phẩm thuộc danh mục Cà phê có tên phù hợp với từ khóa “sữa”. |
-| AC-06.06 | Khách hàng thay đổi nội dung ô tìm kiếm. | Danh sách kết quả được cập nhật tương ứng mà không cần tải lại trang. |
+| AC-06.1 | Khách hàng nhập từ khóa “cà phê”. | Hệ thống hiển thị các sản phẩm có tên phù hợp với từ khóa. |
+| AC-06.2 | Khách hàng nhập “CA PHE” thay cho “cà phê”. | Kết quả tìm kiếm tương đương, không phân biệt chữ hoa/thường và dấu tiếng Việt. |
+| AC-06.3 | Khách hàng nhập từ khóa không khớp với sản phẩm nào. | Hệ thống hiển thị thông báo không tìm thấy sản phẩm phù hợp. |
+| AC-06.4 | Khách hàng xóa toàn bộ từ khóa tìm kiếm. | Hệ thống hiển thị lại danh sách sản phẩm theo danh mục hiện tại. |
+| AC-06.5 | Khách hàng chọn danh mục “Cà phê” và nhập từ khóa “sữa”. | Chỉ hiển thị các sản phẩm thuộc danh mục Cà phê có tên phù hợp với từ khóa “sữa”. |
+| AC-06.6 | Khách hàng thay đổi nội dung ô tìm kiếm. | Danh sách kết quả được cập nhật tương ứng mà không cần tải lại trang. |
 ---
 
 ## 3. BẢNG TRUY VẾT YÊU CẦU (TRACEABILITY TABLE)
