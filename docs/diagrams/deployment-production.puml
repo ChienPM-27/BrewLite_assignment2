@@ -1,0 +1,66 @@
+
+@startuml deployment-production
+title Deployment Diagram - BrewLite
+
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam monochrome true
+skinparam componentStyle rectangle
+
+actor "Khách hàng" as Customer
+
+node "Frontend Hosting" {
+    artifact "Next.js Web" as Web
+}
+
+node "Backend Hosting" {
+    artifact "NestJS API" as API
+
+    component "Payments Module" as Payments
+    component "MockGatewayService" as Mock
+    component "VnpayGatewayService" as Vnpay
+    component "Orders Module" as Orders
+    component "Loyalty Module" as Loyalty
+}
+
+database "PostgreSQL" as DB
+cloud "VNPay Sandbox" as VNPay
+
+Customer --> Web : HTTPS
+Web --> API : REST API
+
+API --> Payments
+Payments --> Mock
+Payments --> Vnpay
+Payments --> Orders
+Payments --> Loyalty
+
+Orders --> DB
+Payments --> DB
+Loyalty --> DB
+
+Vnpay --> VNPay : Create payment request
+VNPay --> Web : Return URL
+VNPay --> Vnpay : IPN Callback
+
+note right of Vnpay
+  Verify HMAC-SHA512
+  before updating payment status
+end note
+
+note bottom of API
+  Environment:
+  VNPAY_URL
+  VNPAY_TMN_CODE
+  VNPAY_HASH_SECRET
+  VNPAY_RETURN_URL
+
+  Hash Secret: Backend only
+end note
+
+note bottom of VNPay
+  Local: Public tunnel URL
+  Render: Public Backend URL
+end note
+
+@enduml

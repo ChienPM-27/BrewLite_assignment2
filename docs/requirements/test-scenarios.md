@@ -36,11 +36,21 @@
 | | `AC-15.1` | Áp dụng mã giảm giá hợp lệ trừ đúng tiền | Unit | `TC-ORDER-04` | `apps/api/src/modules/promotions/**` |
 | | `AC-16.1` | Chuyển đổi trạng thái đúng thứ tự state machine | Unit | `TC-ORDER-05` | `apps/api/src/modules/orders/**` |
 | | `AC-16.3` | Chuyển sai trạng thái bị chặn với 409 Conflict | Unit | `TC-ORDER-06` | `apps/api/src/modules/orders/**` |
-| **Payment**| `AC-17.1` | Thanh toán mô phỏng thành công chuyển đơn sang PAID | Integration | `TC-PAY-01` | `apps/api/src/modules/payments/**` |
+| **Payment** | `AC-17.1` | Thanh toán mô phỏng thành công chuyển đơn sang PAID | Integration | `TC-PAY-01` | `apps/api/src/modules/payments/**` |
+| | `AC-17.2` | Thanh toán qua Mock Gateway thất bại chuyển đơn sang PAYMENT_FAILED | Integration | `TC-PAY-05` | `apps/api/src/modules/payments/**` |
+| | `AC-17.3` | Mock Gateway không được sử dụng trong Production | Integration | `TC-PAY-06` | `apps/api/src/modules/payments/**` |
+| | `AC-17.4` | Tạo yêu cầu thanh toán VNPay trả về paymentUrl và Payment PENDING | Integration | `TC-PAY-07` | `apps/api/src/modules/payments/**` |
 | | `AC-18.1` | Thiếu Idempotency-Key trả về 400 Bad Request | Integration | `TC-PAY-02` | `apps/api/src/modules/payments/**` |
 | | `AC-18.2` | Gửi 2 lần cùng Idempotency-Key chỉ tạo 1 payment | Integration | `TC-PAY-03` | `apps/api/src/modules/payments/**` |
-| | `AC-18.3` | Cùng Idempotency-Key nhưng khác body trả về 409 | Integration | `TC-PAY-04` | `apps/api/src/modules/payments/**` |
-| | `AC-19.1` | Mô phỏng thất bại trả về PAYMENT_FAILED | Integration | `TC-PAY-05` | `apps/api/src/modules/payments/**` |
+| | `AC-18.3` | Cùng Idempotency-Key nhưng khác body trả về 409 Conflict | Integration | `TC-PAY-04` | `apps/api/src/modules/payments/**` |
+| | `AC-18.4` | IPN gửi lặp không xử lý thanh toán hoặc cộng điểm nhiều lần | Integration | `TC-PAY-08` | `apps/api/src/modules/payments/**` |
+| | `AC-19.1` | Mô phỏng thanh toán thất bại trả về PAYMENT_FAILED | Integration | `TC-PAY-05` | `apps/api/src/modules/payments/**` |
+| | `AC-19.2` | Retry thanh toán thất bại bằng Idempotency-Key mới | Integration | `TC-PAY-09` | `apps/api/src/modules/payments/**` |
+| | `AC-19.3` | Chưa nhận được IPN thì Payment tiếp tục PENDING | Integration | `TC-PAY-10` | `apps/api/src/modules/payments/**` |
+| | `AC-20.1` | IPN có chữ ký hợp lệ và giao dịch thành công cập nhật Payment SUCCESS, Order PAID | Integration | `TC-PAY-11` | `apps/api/src/modules/payments/**` |
+| | `AC-20.2` | IPN có chữ ký không hợp lệ bị từ chối xác nhận giao dịch | Integration | `TC-PAY-12` | `apps/api/src/modules/payments/**` |
+| | `AC-20.3` | IPN có mã đơn hàng hoặc số tiền không khớp không được xác nhận thành công | Integration | `TC-PAY-13` | `apps/api/src/modules/payments/**` |
+| | `AC-20.4` | Return URL không được sử dụng làm căn cứ xác nhận thanh toán | Integration | `TC-PAY-14` | `apps/api/src/modules/payments/**` |
 | **History**| `AC-21.1` | Xem danh sách đơn hàng đã mua | Integration | `TC-HIST-01` | `apps/api/src/modules/orders/history/**` |
 | | `AC-21.3` | Không xem được đơn của người dùng khác | Integration | `TC-HIST-02` | `apps/api/src/modules/orders/history/**` |
 | | `AC-22.1` | Xem chi tiết đơn hàng cũ và lịch sử trạng thái | Integration | `TC-HIST-03` | `apps/api/src/modules/orders/history/**` |
