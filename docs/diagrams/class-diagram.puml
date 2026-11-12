@@ -1,5 +1,5 @@
 @startuml class-diagram
-title BrewLite Assignment 2 — Biểu Đồ Lớp Hệ Thống (Prisma Entities, Enums & Core Services)
+title BrewLite Assignment 2 — Biểu Đồ Lớp Hệ Thống (Toàn Bộ 16 Prisma Models, 7 Enums & Backend Services)
 
 top to bottom direction
 skinparam shadowing false
@@ -9,8 +9,8 @@ skinparam defaultFontName Arial
 skinparam defaultFontSize 12
 skinparam classAttributeIconSize 0
 skinparam packageStyle rectangle
-skinparam nodesep 45
-skinparam ranksep 50
+skinparam nodesep 38
+skinparam ranksep 45
 
 skinparam classFontColor #FFFFFF
 skinparam classStereotypeFontColor #E2E8F0
@@ -39,7 +39,7 @@ skinparam note {
 }
 
 ' ==========================================================
-' 1. ENUMS TRẠNG THÁI & PHÂN LOẠI (Prisma Schema)
+' 1. DOMAIN ENUMS (KHỚP schema.prisma)
 ' ==========================================================
 package "Domain Enums (Prisma Schema)" #F1F5F9 {
     enum Role {
@@ -88,9 +88,9 @@ package "Domain Enums (Prisma Schema)" #F1F5F9 {
 }
 
 ' ==========================================================
-' 2. CORE ENTITIES (KHỚP TRỰC TIẾP schema.prisma)
+' 2. DOMAIN ENTITIES (ĐỦ 16 PRISMA MODELS TRONG schema.prisma)
 ' ==========================================================
-package "Core Domain Entities (PostgreSQL / Prisma Models)" #F8FAFC {
+package "Domain Entities (PostgreSQL / Prisma Models)" #F8FAFC {
     class User <<model>> {
         + id : String <<PK, cuid>>
         + email : String <<UK>>
@@ -98,6 +98,15 @@ package "Core Domain Entities (PostgreSQL / Prisma Models)" #F8FAFC {
         + fullName : String?
         + role : Role = CUSTOMER
         + loyaltyPoints : Int = 0
+        + createdAt : DateTime
+        + updatedAt : DateTime
+    }
+
+    class Category <<model>> {
+        + id : String <<PK, cuid>>
+        + name : String <<UK>>
+        + slug : String <<UK>>
+        + displayOrder : Int = 0
         + createdAt : DateTime
         + updatedAt : DateTime
     }
@@ -110,6 +119,23 @@ package "Core Domain Entities (PostgreSQL / Prisma Models)" #F8FAFC {
         + imageUrl : String?
         + stock : Int <<deprecated CR-01>>
         + version : Int <<deprecated CR-01>>
+        + isAvailable : Boolean = true
+        + createdAt : DateTime
+        + updatedAt : DateTime
+    }
+
+    class ProductSizePrice <<model>> {
+        + id : String <<PK, cuid>>
+        + productId : String <<FK>>
+        + size : ProductSize
+        + priceAdjustment : Decimal(12,0) = 0
+    }
+
+    class Topping <<model>> {
+        + id : String <<PK, cuid>>
+        + name : String <<UK>>
+        + price : Decimal(12,0)
+        + stock : Int <<deprecated CR-01>>
         + isAvailable : Boolean = true
         + createdAt : DateTime
         + updatedAt : DateTime
@@ -156,6 +182,13 @@ package "Core Domain Entities (PostgreSQL / Prisma Models)" #F8FAFC {
         + lineTotal : Decimal(12,0)
     }
 
+    class OrderItemTopping <<model>> {
+        + id : String <<PK, cuid>>
+        + orderItemId : String <<FK>>
+        + toppingId : String <<FK>>
+        + price : Decimal(12,0)
+    }
+
     class Payment <<model>> {
         + id : String <<PK, cuid>>
         + orderId : String <<FK>>
@@ -181,12 +214,55 @@ package "Core Domain Entities (PostgreSQL / Prisma Models)" #F8FAFC {
         + reason : String
         + createdAt : DateTime
     }
+
+    class OrderStatusHistory <<model>> {
+        + id : String <<PK, cuid>>
+        + orderId : String <<FK>>
+        + fromStatus : OrderStatus?
+        + toStatus : OrderStatus
+        + changedBy : String?
+        + reason : String?
+        + createdAt : DateTime
+    }
+
+    class Ingredient <<model>> {
+        + id : String <<PK, cuid>>
+        + name : String <<UK>>
+        + unit : String
+        + stock : Int = 0
+        + minThreshold : Int = 50
+        + isAvailable : Boolean = true
+        + createdAt : DateTime
+        + updatedAt : DateTime
+    }
+
+    class ProductRecipe <<model>> {
+        + id : String <<PK, cuid>>
+        + productId : String <<FK>>
+        + size : ProductSize = M
+        + ingredientId : String <<FK>>
+        + quantity : Int
+    }
+
+    class ToppingRecipe <<model>> {
+        + id : String <<PK, cuid>>
+        + toppingId : String <<FK>>
+        + ingredientId : String <<FK>>
+        + quantity : Int
+    }
+
+    class OrderIngredientUsage <<model>> {
+        + id : String <<PK, cuid>>
+        + orderId : String <<FK>>
+        + ingredientId : String <<FK>>
+        + quantity : Int
+    }
 }
 
 ' ==========================================================
-' 3. CORE APPLICATION SERVICES (NestJS Providers)
+' 3. BACKEND SERVICES & HELPERS (ĐỦ CÁC SERVICE TRONG apps/api/src)
 ' ==========================================================
-package "Core Backend Services (NestJS)" #EFF6FF {
+package "Backend Services & Helpers (NestJS)" #EFF6FF {
     class PrismaClient <<external>> {
         + $connect() : Promise<void>
         + $disconnect() : Promise<void>
@@ -201,6 +277,10 @@ package "Core Backend Services (NestJS)" #EFF6FF {
     class AuthService <<service>> {
         + register(dto: RegisterDto) : Promise<AuthResult>
         + login(dto: LoginDto) : Promise<AuthResult>
+    }
+
+    class ProductsService <<service>> {
+        + getProducts() : Promise<ProductItem[]>
     }
 
     class ProductDetailService <<service>> {
@@ -223,55 +303,103 @@ package "Core Backend Services (NestJS)" #EFF6FF {
         + transition(tx, orderId: string, to: OrderStatus, opts?) : Promise<Order>
     }
 
+    class CancelOrderService <<service>> {
+        + cancel(orderId: string, userId: string) : Promise<CancelOrderResult>
+    }
+
+    class HistoryService <<service>> {
+        + findAll(userId: string, query?: GetOrderHistoryDto) : Promise<OrderHistoryResult>
+        + findOne(userId: string, orderId: string) : Promise<OrderDetail>
+    }
+
+    class AdminOrdersService <<service>> {
+        + findActive() : Promise<AdminOrder[]>
+        + advance(orderId: string, toStatus: OrderStatus, adminId: string) : Promise<Order>
+    }
+
     class PaymentsService <<service>> {
         + createPayment(userId: string, key: string, dto: CreatePaymentDto, mockOutcome?) : Promise<PaymentResponse>
         + handleVnpayIpn(query: Record<string, string>) : Promise<VnpayIpnResponse>
         + getPaymentById(userId: string, paymentId: string) : Promise<PaymentResponse>
     }
 
+    class MockGatewayService <<service>> {
+        + processPayment(outcomeHeader?: string) : MockPaymentOutcome
+    }
+
+    class VnpayGatewayService <<service>> {
+        + getCredentials() : VnpayCredentials
+        + createPaymentUrl(params) : string
+        + verifyIpnSignature(query) : boolean
+    }
+
     class LoyaltyService <<service>> {
         + award(tx, order: { id, userId, finalAmount }) : Promise<void>
+    }
+
+    class IngredientStockHelper <<helper>> {
+        + deductIngredients(tx, demands: IngredientDemand[]) : Promise<void>
+        + restoreIngredients(tx, usages: IngredientUsage[]) : Promise<void>
     }
 }
 
 ' ==========================================================
-' 4. QUAN HỆ KẾ THỪA THỰC TẾ TRONG CODE (INHERITANCE)
+' 4. QUAN HỆ KẾ THỪA THỰC TẾ (INHERITANCE)
 ' ==========================================================
 PrismaClient <|-- PrismaService : extends
 
 ' ==========================================================
-' 5. QUAN HỆ GIỮA CÁC ENTITY (COMPOSITION, AGGREGATION, ASSOCIATION)
+' 5. QUAN HỆ GIỮA 16 ENTITY (COMPOSITION, AGGREGATION, ASSOCIATION)
 ' ==========================================================
-' Composition (*--): Tồn tại phụ thuộc chặt vào cha (onDelete: Cascade)
+' Composition (*--): onDelete: Cascade
+Product "1" *-- "1..*" ProductSizePrice : has prices >
+Product "1" *-- "0..*" ProductRecipe : uses recipe >
+Topping "1" *-- "0..*" ToppingRecipe : uses recipe >
 Order "1" *-- "1..*" OrderItem : contains >
 Order "1" *-- "0..*" Payment : paid by >
+Order "1" *-- "0..*" OrderStatusHistory : logs >
+Order "1" *-- "0..*" OrderIngredientUsage : consumes >
+OrderItem "1" *-- "0..*" OrderItemTopping : includes >
 
-' Aggregation (o--): Sở hữu yếu, vòng đời độc lập
+' Aggregation (o--): vòng đời độc lập
+Category "0..1" o-- "0..*" Product : categorizes >
 Promotion "0..1" o-- "0..*" Order : applies to >
 User "1" o-- "0..*" LoyaltyTransaction : owns >
 
-' Association (--> / <--): Liên kết nghiệp vụ chuẩn
+' Association (--> / <--): liên kết tham chiếu
 User "1" --> "0..*" Order : places >
 Product "1" <-- "0..*" OrderItem : references <
+Topping "1" <-- "0..*" OrderItemTopping : snapshots <
 Order "0..1" <-- "0..*" LoyaltyTransaction : awards / refunds <
+Ingredient "1" <-- "0..*" ProductRecipe : required by <
+Ingredient "1" <-- "0..*" ToppingRecipe : required by <
+Ingredient "1" <-- "0..*" OrderIngredientUsage : deducted from <
 
 ' ==========================================================
 ' 6. TƯƠNG TÁC SERVICE & ENTITY
 ' ==========================================================
-OrdersService --> PricingService : calculates prices
+OrdersService --> PricingService : delegates pricing
 OrdersService --> PromotionsService : validates voucher
+OrdersService --> IngredientStockHelper : deducts ingredients
 OrdersService --> PrismaService : uses $transaction
-PaymentsService --> OrderService : transitions status
+PaymentsService --> OrderService : transition(PENDING -> PAID/FAILED)
 PaymentsService --> LoyaltyService : awards points
+PaymentsService --> MockGatewayService : mock gateway
+PaymentsService --> VnpayGatewayService : VNPay gateway
+PaymentsService --> IngredientStockHelper : restores on fail
 PaymentsService --> PrismaService : reads/writes payments
+CancelOrderService --> OrderService : transition(CANCELLED)
+CancelOrderService --> IngredientStockHelper : restores ingredients
+AdminOrdersService --> OrderService : transition(PAID -> PREPARING -> READY -> COMPLETED)
 
 AuthService ..> User : manages
-ProductDetailService ..> Product : queries
+ProductsService ..> Product : lists available
+ProductDetailService ..> Product : queries detail & toppings
 PricingService ..> Product : reads DB prices
 PromotionsService ..> Promotion : validates
-OrdersService ..> Order : creates
-OrderService ..> Order : updates status & version
-PaymentsService ..> Payment : records & replays
+OrdersService ..> Order : creates Order & OrderItems
+OrderService ..> OrderStatusHistory : records transitions
+HistoryService ..> Order : queries history
 LoyaltyService ..> LoyaltyTransaction : logs points
 
 note bottom of OrderService

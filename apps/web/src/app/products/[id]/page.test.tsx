@@ -60,7 +60,7 @@ describe('ProductDetailPage (FR-07..09)', () => {
     useCartStore.getState().clearCart();
   });
 
-  it('render đầy đủ thông tin sản phẩm (tên, mô tả, ảnh, giá gốc) và mặc định chọn Size S (AC-07.1, AC-08.1)', async () => {
+  it('render đầy đủ thông tin động từ API sản phẩm (tên, danh mục, ảnh, giá gốc, size, topping) và mặc định chọn Size S (AC-07.1, AC-08.1)', async () => {
     const product = createMockProduct();
     mockedGetProductById.mockResolvedValueOnce(product);
 
@@ -72,14 +72,16 @@ describe('ProductDetailPage (FR-07..09)', () => {
     });
     expect(heading).toBeInTheDocument();
 
-    // Mô tả sản phẩm
-    expect(
-      screen.getByText(/Hương vị cà phê Robusta Buôn Ma Thuột đậm đà/i),
-    ).toBeInTheDocument();
+    // Danh mục sản phẩm (ProductDetail DTO chưa có trường description nên không assert đoạn mô tả tĩnh)
+    expect(screen.getAllByText(product.categoryName!).length).toBeGreaterThanOrEqual(1);
 
     // Ảnh chính của sản phẩm
     const productImg = screen.getByRole('img', { name: product.name });
     expect(productImg).toHaveAttribute('src', product.imageUrl);
+
+    // Danh sách topping render từ fixture
+    expect(screen.getByText('Trân châu trắng')).toBeInTheDocument();
+    expect(screen.getByText('Kem Cheese')).toBeInTheDocument();
 
     // Giá gốc & mặc định chọn Size S
     expect(screen.getByText('Giá gốc ly Size S')).toBeInTheDocument();
