@@ -45,6 +45,7 @@ node "Backend Container (NestJS - Port 4000)" as BE_Node {
         component [PaymentsModule\n(Payment & Idempotency)] as PaymentsMod
         component [Pricing & Promotions\n(PricingService, PromotionsService)] as PricingMod
         component [LoyaltyModule\n(LoyaltyPoints)] as LoyaltyMod
+        component [VNPay Integration\n(VnpayGatewayService)] as VNPayService
     }
 
     component [Prisma ORM Module\n(PrismaService)] as PrismaMod
@@ -54,12 +55,18 @@ node "Backend Container (NestJS - Port 4000)" as BE_Node {
 node "Database Container (Port 5432)" as DB_Node {
     database "PostgreSQL 16 (brewlite_db)" as PostgresDB {
         folder "Relational Tables (schema: public)" {
-            [users / categories / products / product_size_prices]
-            [toppings / promotions / orders / order_items]
-            [order_item_toppings / payments / loyalty_transactions]
+
+            rectangle "Users\n(users)" as UsersTables
+            rectangle "Product Catalog\n(categories, products,\nproduct_size_prices, toppings)" as CatalogTables
+            rectangle "Orders & History\n(orders, order_items,\norder_item_toppings, order_status_history)" as OrdersTables
+            rectangle "Payments\n(payments)" as PaymentTables
+            rectangle "Promotions & Loyalty\n(promotions, loyalty_transactions)" as LoyaltyTables
+            rectangle "Inventory & Recipes\n(ingredients, product_recipes,\ntopping_recipes, order_ingredient_usages)" as InventoryTables
         }
     }
 }
+
+cloud "VNPay Sandbox\n(External Payment System)" as VNPay
 
 ' External interactions
 Client --> UI : Tương tác trực tiếp (HTTP/HTML/JS)
@@ -83,9 +90,13 @@ OrdersMod --> PrismaMod
 PaymentsMod --> PrismaMod
 LoyaltyMod --> PrismaMod
 
+PaymentsMod ..> VNPayService : Tạo URL / xác thực IPN
+Client --> VNPay : Truy cập trang thanh toán
+VNPay ..> Middleware : HTTPS IPN Callback
 PrismaMod --> PostgresDB : Prisma Client TCP 5432
 
 FE_Node -[hidden]down-> BE_Node
 BE_Node -[hidden]down-> DB_Node
 
 @enduml
+
