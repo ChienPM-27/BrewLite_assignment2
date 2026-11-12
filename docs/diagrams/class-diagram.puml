@@ -1,137 +1,214 @@
-@startuml class-diagram-backend
-title Sơ Đồ Lớp Backend: Các Dịch Vụ (Services) & Thực Thể Dữ Liệu (Prisma Entities)
-skinparam defaultFontName Arial
+@startuml class-diagram
+title BrewLite Assignment 2 — Biểu Đồ Lớp Hệ Thống (Toàn Bộ 16 Prisma Models, 7 Enums & Backend Services)
+
+top to bottom direction
 skinparam shadowing false
-skinparam roundcorner 6
+skinparam roundcorner 8
+skinparam linetype ortho
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
 skinparam classAttributeIconSize 0
 skinparam packageStyle rectangle
+skinparam nodesep 38
+skinparam ranksep 45
 
 skinparam classFontColor #FFFFFF
-skinparam classStereotypeFontColor #FFFFFF
-skinparam stereotypeFontColor #FFFFFF
+skinparam classStereotypeFontColor #E2E8F0
+skinparam stereotypeFontColor #E2E8F0
 
 skinparam class {
     BackgroundColor #FFFFFF
     BorderColor #2B6CB0
     HeaderBackgroundColor #1A365D
     HeaderFontColor #FFFFFF
+    ArrowColor #334155
+    ArrowFontColor #334155
 }
 
-package "Domain Entities (Prisma Models)" #F8FAFC {
+skinparam enum {
+    BackgroundColor #FFFFFF
+    BorderColor #2B6CB0
+    HeaderBackgroundColor #1A365D
+    HeaderFontColor #FFFFFF
+}
+
+skinparam note {
+    BackgroundColor #FEF3C7
+    BorderColor #D97706
+    FontColor #78350F
+}
+
+' ==========================================================
+' 1. DOMAIN ENUMS (KHỚP schema.prisma)
+' ==========================================================
+package "Domain Enums (Prisma Schema)" #F1F5F9 {
+    enum Role {
+        CUSTOMER
+        ADMIN
+        BARISTA
+    }
+
+    enum OrderStatus {
+        PENDING
+        PAID
+        PREPARING
+        READY
+        COMPLETED
+        PAYMENT_FAILED
+        CANCELLED
+    }
+
+    enum PaymentStatus {
+        PENDING
+        SUCCESS
+        FAILED
+    }
+
+    enum PaymentMethod {
+        E_WALLET
+        BANK_CARD
+    }
+
+    enum PaymentGateway {
+        MOCK
+        VNPAY
+    }
+
+    enum ProductSize {
+        S
+        M
+        L
+    }
+
+    enum LoyaltyTransactionType {
+        EARNED
+        SPENT
+        REFUNDED
+    }
+}
+
+' ==========================================================
+' 2. DOMAIN ENTITIES (ĐỦ 16 PRISMA MODELS TRONG schema.prisma)
+' ==========================================================
+package "Domain Entities (PostgreSQL / Prisma Models)" #F8FAFC {
     class User <<model>> {
-        + id : String [PK]
-        + email : String [UK]
+        + id : String <<PK, cuid>>
+        + email : String <<UK>>
         + passwordHash : String
         + fullName : String?
-        + loyaltyPoints : Int
+        + role : Role = CUSTOMER
+        + loyaltyPoints : Int = 0
         + createdAt : DateTime
         + updatedAt : DateTime
     }
 
     class Category <<model>> {
-        + id : String [PK]
-        + name : String [UK]
-        + slug : String [UK]
-        + displayOrder : Int
+        + id : String <<PK, cuid>>
+        + name : String <<UK>>
+        + slug : String <<UK>>
+        + displayOrder : Int = 0
         + createdAt : DateTime
         + updatedAt : DateTime
     }
 
     class Product <<model>> {
-        + id : String [PK]
-        + categoryId : String? [FK]
+        + id : String <<PK, cuid>>
+        + categoryId : String? <<FK>>
         + name : String
         + basePrice : Decimal(12,0)
         + imageUrl : String?
-        + stock : Int
-        + version : Int <<OptimisticLock>>
-        + isAvailable : Boolean
+        + stock : Int <<deprecated CR-01>>
+        + version : Int <<deprecated CR-01>>
+        + isAvailable : Boolean = true
         + createdAt : DateTime
         + updatedAt : DateTime
     }
 
     class ProductSizePrice <<model>> {
-        + id : String [PK]
-        + productId : String [FK]
-        + size : ProductSize (S|M|L)
-        + priceAdjustment : Decimal(12,0)
+        + id : String <<PK, cuid>>
+        + productId : String <<FK>>
+        + size : ProductSize
+        + priceAdjustment : Decimal(12,0) = 0
     }
 
     class Topping <<model>> {
-        + id : String [PK]
-        + name : String [UK]
+        + id : String <<PK, cuid>>
+        + name : String <<UK>>
         + price : Decimal(12,0)
-        + stock : Int
-        + isAvailable : Boolean
+        + stock : Int <<deprecated CR-01>>
+        + isAvailable : Boolean = true
         + createdAt : DateTime
         + updatedAt : DateTime
     }
 
     class Promotion <<model>> {
-        + id : String [PK]
-        + code : String [UK]
+        + id : String <<PK, cuid>>
+        + code : String <<UK>>
         + description : String?
         + discountPercent : Int?
         + discountAmount : Decimal(12,0)?
         + maxDiscount : Decimal(12,0)?
-        + minOrderAmount : Decimal(12,0)
+        + minOrderAmount : Decimal(12,0) = 0
         + startDate : DateTime
         + endDate : DateTime?
-        + isActive : Boolean
+        + isActive : Boolean = true
         + createdAt : DateTime
         + updatedAt : DateTime
     }
 
     class Order <<model>> {
-        + id : String [PK]
-        + orderNumber : Int [UK]
-        + userId : String [FK]
-        + promotionId : String? [FK]
-        + status : OrderStatus
+        + id : String <<PK, cuid>>
+        + orderNumber : Int <<UK, autoincrement>>
+        + userId : String <<FK>>
+        + promotionId : String? <<FK>>
+        + status : OrderStatus = PENDING
         + totalAmount : Decimal(12,0)
-        + discountAmount : Decimal(12,0)
+        + discountAmount : Decimal(12,0) = 0
         + finalAmount : Decimal(12,0)
-        + pointsEarned : Int
+        + pointsEarned : Int = 0
         + paidAt : DateTime?
-        + version : Int <<StateLock>>
+        + version : Int = 0 <<OptimisticLock>>
         + createdAt : DateTime
         + updatedAt : DateTime
     }
 
     class OrderItem <<model>> {
-        + id : String [PK]
-        + orderId : String [FK]
-        + productId : String [FK]
-        + size : ProductSize
-        + quantity : Int
+        + id : String <<PK, cuid>>
+        + orderId : String <<FK>>
+        + productId : String <<FK>>
+        + size : ProductSize = M
+        + quantity : Int = 1
         + unitPrice : Decimal(12,0)
         + lineTotal : Decimal(12,0)
     }
 
     class OrderItemTopping <<model>> {
-        + id : String [PK]
-        + orderItemId : String [FK]
-        + toppingId : String [FK]
+        + id : String <<PK, cuid>>
+        + orderItemId : String <<FK>>
+        + toppingId : String <<FK>>
         + price : Decimal(12,0)
     }
 
     class Payment <<model>> {
-        + id : String [PK]
-        + orderId : String [FK]
-        + idempotencyKey : String [UK]
+        + id : String <<PK, cuid>>
+        + orderId : String <<FK>>
+        + idempotencyKey : String <<UK>>
         + requestHash : String?
         + amount : Decimal(12,0)
         + method : PaymentMethod
-        + status : PaymentStatus
+        + gateway : PaymentGateway = MOCK
+        + status : PaymentStatus = PENDING
         + failureReason : String?
         + transactionRef : String?
+        + gatewayTransactionNo : String?
+        + paymentUrl : String?
         + createdAt : DateTime
     }
 
     class LoyaltyTransaction <<model>> {
-        + id : String [PK]
-        + userId : String [FK]
-        + orderId : String? [FK]
+        + id : String <<PK, cuid>>
+        + userId : String <<FK>>
+        + orderId : String? <<FK>>
         + points : Int
         + type : LoyaltyTransactionType
         + reason : String
@@ -139,118 +216,199 @@ package "Domain Entities (Prisma Models)" #F8FAFC {
     }
 
     class OrderStatusHistory <<model>> {
-        + id : String [PK]
-        + orderId : String [FK]
+        + id : String <<PK, cuid>>
+        + orderId : String <<FK>>
         + fromStatus : OrderStatus?
         + toStatus : OrderStatus
         + changedBy : String?
         + reason : String?
         + createdAt : DateTime
     }
-}
 
-package "Backend Services (NestJS Providers)" #EDF2F7 {
-    class AuthService {
-        + register(dto: RegisterDto): Promise<AuthResult>
-        + login(dto: LoginDto): Promise<AuthResult>
+    class Ingredient <<model>> {
+        + id : String <<PK, cuid>>
+        + name : String <<UK>>
+        + unit : String
+        + stock : Int = 0
+        + minThreshold : Int = 50
+        + isAvailable : Boolean = true
+        + createdAt : DateTime
+        + updatedAt : DateTime
     }
 
-    class ProductsService {
-        + getProducts(): Promise<ProductItem[]>
+    class ProductRecipe <<model>> {
+        + id : String <<PK, cuid>>
+        + productId : String <<FK>>
+        + size : ProductSize = M
+        + ingredientId : String <<FK>>
+        + quantity : Int
     }
 
-    class ProductDetailService {
-        + getProductById(id: string): Promise<ProductDetailDto>
+    class ToppingRecipe <<model>> {
+        + id : String <<PK, cuid>>
+        + toppingId : String <<FK>>
+        + ingredientId : String <<FK>>
+        + quantity : Int
     }
 
-    class OrdersService {
-        + create(userId: string, dto: CreateOrderDto): Promise<Order>
-    }
-
-    class OrderService {
-        + transition(tx, orderId: string, toStatus: OrderStatus, meta): Promise<Order>
-    }
-
-    class CancelOrderService {
-        + cancel(orderId: string, userId: string): Promise<CancelResult>
-    }
-
-    class HistoryService {
-        + findAll(userId: string, query?: GetOrderHistoryDto): Promise<OrderHistoryResult>
-        + findOne(userId: string, orderId: string): Promise<OrderDetail>
-    }
-
-    class PaymentsService {
-        + createPayment(userId: string, key: string, body: CreatePaymentDto, mockOutcome?: string): Promise<PaymentResponse>
-        - replayExistingPayment(payment, userId: string, requestHash: string): PaymentResponse
-    }
-
-    class IngredientStockHelper {
-        + deductIngredients(tx, needs)
-        + restoreIngredients(tx, usages)
-    }
-
-    class MockGatewayService {
-        + processPayment(mockOutcome?: string): 'SUCCESS' | 'FAILED'
-    }
-
-    class PricingService {
-        + calculate(items: PricingItemInput[]): Promise<PricingCalculationResult>
-    }
-
-    class PromotionsService {
-        + validate(code: string, subtotal: number): Promise<PromotionValidationResult>
-    }
-
-    class LoyaltyService {
-        + award(tx, order: { id, userId, finalAmount }): Promise<void>
-    }
-
-    class PrismaService {
-        + onModuleInit(): Promise<void>
-        + onModuleDestroy(): Promise<void>
-        + $transaction(fn): Promise<any>
+    class OrderIngredientUsage <<model>> {
+        + id : String <<PK, cuid>>
+        + orderId : String <<FK>>
+        + ingredientId : String <<FK>>
+        + quantity : Int
     }
 }
 
-' Quan hệ giữa các Entity
-User "1" *-- "0..*" Order
-User "1" *-- "0..*" LoyaltyTransaction
-Category "0..1" o-- "0..*" Product
-Product "1" *-- "1..*" ProductSizePrice
-Product "1" <-- "0..*" OrderItem
-Promotion "0..1" o-- "0..*" Order
-Order "1" *-- "1..*" OrderItem
-Order "1" *-- "0..*" Payment
-Order "1" *-- "0..*" OrderStatusHistory
-Order "0..1" <-- "0..*" LoyaltyTransaction
-OrderItem "1" *-- "0..*" OrderItemTopping
-Topping "1" <-- "0..*" OrderItemTopping
+' ==========================================================
+' 3. BACKEND SERVICES & HELPERS (ĐỦ CÁC SERVICE TRONG apps/api/src)
+' ==========================================================
+package "Backend Services & Helpers (NestJS)" #EFF6FF {
+    class PrismaClient <<external>> {
+        + $connect() : Promise<void>
+        + $disconnect() : Promise<void>
+        + $transaction(fn) : Promise<T>
+    }
 
-' Tương tác giữa các Service
-OrdersService --> IngredientStockHelper : deducts/restores ingredients
+    class PrismaService <<service>> {
+        + onModuleInit() : Promise<void>
+        + onModuleDestroy() : Promise<void>
+    }
+
+    class AuthService <<service>> {
+        + register(dto: RegisterDto) : Promise<AuthResult>
+        + login(dto: LoginDto) : Promise<AuthResult>
+    }
+
+    class ProductsService <<service>> {
+        + getProducts() : Promise<ProductItem[]>
+    }
+
+    class ProductDetailService <<service>> {
+        + getProductById(id: string) : Promise<ProductDetailDto>
+    }
+
+    class PricingService <<service>> {
+        + calculate(items: PricingItemInput[]) : Promise<PricingResult>
+    }
+
+    class PromotionsService <<service>> {
+        + validate(code: string, totalAmount: number) : Promise<PromotionResult?>
+    }
+
+    class OrdersService <<service>> {
+        + create(userId: string, dto: CreateOrderDto) : Promise<Order>
+    }
+
+    class OrderService <<service>> {
+        + transition(tx, orderId: string, to: OrderStatus, opts?) : Promise<Order>
+    }
+
+    class CancelOrderService <<service>> {
+        + cancel(orderId: string, userId: string) : Promise<CancelOrderResult>
+    }
+
+    class HistoryService <<service>> {
+        + findAll(userId: string, query?: GetOrderHistoryDto) : Promise<OrderHistoryResult>
+        + findOne(userId: string, orderId: string) : Promise<OrderDetail>
+    }
+
+    class AdminOrdersService <<service>> {
+        + findActive() : Promise<AdminOrder[]>
+        + advance(orderId: string, toStatus: OrderStatus, adminId: string) : Promise<Order>
+    }
+
+    class PaymentsService <<service>> {
+        + createPayment(userId: string, key: string, dto: CreatePaymentDto, mockOutcome?) : Promise<PaymentResponse>
+        + handleVnpayIpn(query: Record<string, string>) : Promise<VnpayIpnResponse>
+        + getPaymentById(userId: string, paymentId: string) : Promise<PaymentResponse>
+    }
+
+    class MockGatewayService <<service>> {
+        + processPayment(outcomeHeader?: string) : MockPaymentOutcome
+    }
+
+    class VnpayGatewayService <<service>> {
+        + getCredentials() : VnpayCredentials
+        + createPaymentUrl(params) : string
+        + verifyIpnSignature(query) : boolean
+    }
+
+    class LoyaltyService <<service>> {
+        + award(tx, order: { id, userId, finalAmount }) : Promise<void>
+    }
+
+    class IngredientStockHelper <<helper>> {
+        + deductIngredients(tx, demands: IngredientDemand[]) : Promise<void>
+        + restoreIngredients(tx, usages: IngredientUsage[]) : Promise<void>
+    }
+}
+
+' ==========================================================
+' 4. QUAN HỆ KẾ THỪA THỰC TẾ (INHERITANCE)
+' ==========================================================
+PrismaClient <|-- PrismaService : extends
+
+' ==========================================================
+' 5. QUAN HỆ GIỮA 16 ENTITY (COMPOSITION, AGGREGATION, ASSOCIATION)
+' ==========================================================
+' Composition (*--): onDelete: Cascade
+Product "1" *-- "1..*" ProductSizePrice : has prices >
+Product "1" *-- "0..*" ProductRecipe : uses recipe >
+Topping "1" *-- "0..*" ToppingRecipe : uses recipe >
+Order "1" *-- "1..*" OrderItem : contains >
+Order "1" *-- "0..*" Payment : paid by >
+Order "1" *-- "0..*" OrderStatusHistory : logs >
+Order "1" *-- "0..*" OrderIngredientUsage : consumes >
+OrderItem "1" *-- "0..*" OrderItemTopping : includes >
+
+' Aggregation (o--): vòng đời độc lập
+Category "0..1" o-- "0..*" Product : categorizes >
+Promotion "0..1" o-- "0..*" Order : applies to >
+User "1" o-- "0..*" LoyaltyTransaction : owns >
+
+' Association (--> / <--): liên kết tham chiếu
+User "1" --> "0..*" Order : places >
+Product "1" <-- "0..*" OrderItem : references <
+Topping "1" <-- "0..*" OrderItemTopping : snapshots <
+Order "0..1" <-- "0..*" LoyaltyTransaction : awards / refunds <
+Ingredient "1" <-- "0..*" ProductRecipe : required by <
+Ingredient "1" <-- "0..*" ToppingRecipe : required by <
+Ingredient "1" <-- "0..*" OrderIngredientUsage : deducted from <
+
+' ==========================================================
+' 6. TƯƠNG TÁC SERVICE & ENTITY
+' ==========================================================
 OrdersService --> PricingService : delegates pricing
-OrdersService --> PromotionsService : delegates coupon validation
-OrdersService --> PrismaService : uses transaction & lock
+OrdersService --> PromotionsService : validates voucher
+OrdersService --> IngredientStockHelper : deducts ingredients
+OrdersService --> PrismaService : uses $transaction
 PaymentsService --> OrderService : transition(PENDING -> PAID/FAILED)
-PaymentsService --> LoyaltyService : award loyalty points
-PaymentsService --> MockGatewayService : processPayment()
-PaymentsService --> PrismaService : reads/writes payment records
+PaymentsService --> LoyaltyService : awards points
+PaymentsService --> MockGatewayService : mock gateway
+PaymentsService --> VnpayGatewayService : VNPay gateway
+PaymentsService --> IngredientStockHelper : restores on fail
+PaymentsService --> PrismaService : reads/writes payments
 CancelOrderService --> OrderService : transition(CANCELLED)
-CancelOrderService --> PrismaService : restocks inventory
-AuthService --> PrismaService
-ProductsService --> PrismaService
-ProductDetailService --> PrismaService
-HistoryService --> PrismaService
-LoyaltyService --> PrismaService
+CancelOrderService --> IngredientStockHelper : restores ingredients
+AdminOrdersService --> OrderService : transition(PAID -> PREPARING -> READY -> COMPLETED)
 
-' Service tác động lên Entity
-AuthService ..> User : creates & queries
-ProductsService ..> Product : queries active products
+AuthService ..> User : manages
+ProductsService ..> Product : lists available
 ProductDetailService ..> Product : queries detail & toppings
+PricingService ..> Product : reads DB prices
+PromotionsService ..> Promotion : validates
 OrdersService ..> Order : creates Order & OrderItems
-OrdersService ..> Product : checks & decrements stock
-PaymentsService ..> Payment : records payment transaction
-OrderService ..> OrderStatusHistory : logs state transitions
+OrderService ..> OrderStatusHistory : records transitions
+HistoryService ..> Order : queries history
+LoyaltyService ..> LoyaltyTransaction : logs points
 
+note bottom of OrderService
+  Invariant: Duy nhất OrderService.transition()
+  được phép cập nhật Order.status (Optimistic Lock).
+end note
+
+note bottom of PricingService
+  Invariant: Toàn bộ giá do PricingService
+  tính độc lập từ DB, bỏ qua giá từ Client.
+end note
 @enduml

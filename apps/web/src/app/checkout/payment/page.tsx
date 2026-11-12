@@ -174,7 +174,6 @@ function PaymentContent() {
       );
 
       if (gateway === 'VNPAY' && res.paymentUrl) {
-        clearCart();
         window.location.href = res.paymentUrl;
         return;
       }
