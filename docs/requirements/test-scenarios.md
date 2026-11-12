@@ -22,7 +22,6 @@
 | | `AC-03.3` | Customer gọi API admin trả về 403 Forbidden | Unit/Guard | `TC-AUTH-07` | `apps/api/src/common/guards/**` |
 | **Menu** | `AC-04.1` | Lọc sản phẩm theo danh mục hiển thị đúng món | Component | `TC-MENU-01` | `apps/web/src/**/menu/**` |
 | | `AC-05.1` | Lấy danh sách sản phẩm trả về mã 200 | Integration | `TC-MENU-02` | `apps/api/src/modules/products/**` |
-| | `AC-05.2` | Món hết nguyên liệu hiển thị trạng thái hết hàng | Component | `TC-MENU-03` | `apps/web/src/**/menu/**` |
 | | `AC-06.1` | Tìm kiếm món theo từ khóa gần đúng | Component | `TC-MENU-04` | `apps/web/src/**/menu/**` |
 | **Detail** | `AC-07.1` | Lấy chi tiết món thành công trả về 200 | Integration | `TC-DETAIL-01` | `apps/api/src/modules/products/**` |
 | | `AC-07.2` | Lấy chi tiết món không tồn tại trả về 404 | Integration | `TC-DETAIL-02` | `apps/api/src/modules/products/**` |

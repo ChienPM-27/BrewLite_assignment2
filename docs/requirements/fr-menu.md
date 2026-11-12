@@ -22,10 +22,9 @@ Cung cấp khả năng hiển thị danh mục sản phẩm, danh sách đồ u�
 
 ### 2.2. FR-05: Xem danh sách món uống (Product Catalog Listing)
 - **MoSCoW**: Must Have
-- **Mô tả**: Hiển thị thẻ món gồm hình ảnh, tên món, giá cơ bản, nhãn trạng thái còn hàng/hết hàng.
+- **Mô tả**: Hiển thị thẻ món gồm hình ảnh, tên món và giá cơ bản.
 - **Acceptance Criteria (AC)**:
   - `AC-05.1`: Gọi API `GET /api/v1/products` trả về mã `200 OK` kèm danh sách món.
-  - `AC-05.2`: Nếu món hết nguyên liệu pha chế, hiển thị nhãn "Hết hàng" (Sold Out) và vô hiệu hóa nút đặt.
 
 ### 2.3. FR-06: Tìm kiếm món theo tên (Product Search)
 - **MoSCoW**: Should Have
