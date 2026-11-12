@@ -13,9 +13,12 @@
 | **Auth** | `AC-01.1` | Đăng ký tài khoản thành công với email & mật khẩu hợp lệ | Integration | `TC-AUTH-01` | `apps/api/src/modules/auth/**` |
 | | `AC-01.2` | Mật khẩu được băm bcrypt, không lưu plain text | Unit | `TC-AUTH-02` | `apps/api/src/modules/auth/**` |
 | | `AC-01.3` | Đăng ký trùng email trả về 409 Conflict | Integration | `TC-AUTH-03` | `apps/api/src/modules/auth/**` |
+| | `AC-01.4` | Dữ liệu đăng ký không hợp lệ hoặc gửi kèm trường `role` trả về 400 | Unit | `TC-AUTH-08` | `apps/api/src/modules/auth/auth.service.spec.ts` |
 | | `AC-02.1` | Đăng nhập đúng trả về 200 OK + JWT accessToken | Integration | `TC-AUTH-04` | `apps/api/src/modules/auth/**` |
 | | `AC-02.2` | Đăng nhập sai mật khẩu trả về 401 Unauthorized | Integration | `TC-AUTH-05` | `apps/api/src/modules/auth/**` |
-| | `AC-03.1` | Truy cập API bảo vệ không có token trả về 401 | Integration | `TC-AUTH-06` | `apps/api/test/health.spec.ts` |
+| | `AC-02.3` | Đăng nhập thiếu email/mật khẩu hoặc sai định dạng trả về 400 | Integration | `TC-AUTH-09` | `apps/api/src/modules/auth/**` |
+| | `AC-03.1` | Truy cập API bảo vệ không có token trả về 401 (trừ route `vnpay/ipn`) | Integration | `TC-AUTH-06` | `apps/api/test/health.spec.ts` |
+| | `AC-03.2` | Token hết hạn hoặc sai chữ ký trả về 401 Unauthorized | Integration | `TC-AUTH-10` | `apps/api/src/modules/auth/**` |
 | | `AC-03.3` | Customer gọi API admin trả về 403 Forbidden | Unit/Guard | `TC-AUTH-07` | `apps/api/src/common/guards/**` |
 | **Menu** | `AC-04.1` | Lọc sản phẩm theo danh mục hiển thị đúng món | Component | `TC-MENU-01` | `apps/web/src/**/menu/**` |
 | | `AC-05.1` | Lấy danh sách sản phẩm trả về mã 200 | Integration | `TC-MENU-02` | `apps/api/src/modules/products/**` |
@@ -27,9 +30,13 @@
 | | `AC-08.2` | Chọn tối đa 3 topping, vượt quá 3 bị chặn | Component | `TC-DETAIL-04` | `apps/web/src/app/products/**` |
 | | `AC-09.2` | Backend tính lại giá bảo vệ tính toàn vẹn | Unit | `TC-DETAIL-05` | `apps/api/src/modules/pricing/**` |
 | **Cart** | `AC-10.1` | Thêm món cùng size/topping tăng số lượng | Unit Store | `TC-CART-01` | `apps/web/src/store/useCartStore.ts` |
+| | `AC-10.2` | Sửa size/topping trong giỏ cập nhật hoặc gộp dòng trùng | Unit Store | `TC-CART-05` | `apps/web/src/store/useCartStore.ts` |
 | | `AC-10.3` | Giảm về 0 hoặc xóa món khỏi giỏ hàng | Unit Store | `TC-CART-02` | `apps/web/src/store/useCartStore.ts` |
 | | `AC-11.1` | Tổng tiền giỏ hàng tính đúng theo số lượng & topping | Unit Store | `TC-CART-03` | `apps/web/src/store/useCartStore.ts` |
+| | `AC-11.2` | Cập nhật tổng tiền & badge tức thì khi thay đổi giỏ hàng | Unit Store | `TC-CART-06` | `apps/web/src/store/useCartStore.ts` |
+| | `AC-12.1` | Lưu trữ bền vững giỏ hàng trong `localStorage` khi reload | Unit Store | `TC-CART-07` | `apps/web/src/store/useCartStore.ts` |
 | | `AC-12.2` | Thanh toán thất bại GIỮ NGUYÊN giỏ hàng | Component | `TC-CART-04` | `apps/web/src/app/cart/**` |
+| | `AC-12.3` | Chỉ xóa sạch giỏ hàng (`clearCart`) sau khi thanh toán `PAID` | Component | `TC-CART-08` | `apps/web/src/app/checkout/payment/page.tsx` |
 | **Order** | `AC-13.1` | Tạo đơn hàng mới chuyển trạng thái PENDING | Integration | `TC-ORDER-01` | `apps/api/src/modules/orders/**` |
 | | `AC-14.1` | Không đủ nguyên liệu từ chối tạo đơn với 400 | Integration | `TC-ORDER-02` | `apps/api/src/modules/orders/**` |
 | | `AC-14.2` | Bắn nhiều đơn song song không bị âm kho nguyên liệu | Concurrency | `TC-ORDER-03` | `apps/api/test/concurrency.ts` |
