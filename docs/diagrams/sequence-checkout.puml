@@ -1,6 +1,5 @@
-
-@startuml sequence-checkout
-title Sequence Diagram - Checkout & Payment (BrewLite)
+@startuml
+title Sequence Diagram - Checkout & Payment (JWT, IPN, Polling, Retry & Idempotency)
 
 skinparam shadowing false
 skinparam defaultFontName Arial
@@ -22,21 +21,26 @@ participant "VnpayGatewayService" as Vnpay
 participant "VNPay Sandbox" as VNPay
 participant "LoyaltyService" as Loyalty
 
-== Tạo đơn hàng ==
+== Xác thực JWT & Tạo đơn hàng ==
 
 Customer -> FE: Xác nhận đặt hàng
-FE -> BE: POST /api/v1/orders
-BE -> BE: Validate dữ liệu và tính giá
-BE -> DB: Transaction: trừ nguyên liệu,\ntạo Order PENDING
-DB --> BE: Order created
-BE --> FE: 201 Created\norderId, orderNumber, finalAmount
-FE --> Customer: Hiển thị trang thanh toán
+FE -> BE: POST /api/v1/orders (Kèm Bearer JWT Token)
+alt JWT không hợp lệ / Hết hạn
+    BE --> FE: 401 Unauthorized
+    FE --> Customer: Yêu cầu đăng nhập lại / Chuyển hướng Login
+else JWT hợp lệ
+    BE -> BE: Validate dữ liệu & tính giá
+    BE -> DB: Transaction: trừ nguyên liệu, tạo Order PENDING
+    DB --> BE: Order created
+    BE --> FE: 201 Created (orderId, finalAmount)
+    FE --> Customer: Hiển thị trang thanh toán
+end
 
 == Tạo yêu cầu thanh toán ==
 
-Customer -> FE: Chọn phương thức và xác nhận
-FE -> FE: Sinh Idempotency-Key (UUID)
-FE -> BE: POST /api/v1/payments\nIdempotency-Key
+Customer -> FE: Chọn phương thức & Xác nhận thanh toán
+FE -> FE: Chuẩn bị Idempotency-Key
+FE -> BE: POST /api/v1/payments (Kèm JWT & Idempotency-Key)
 
 BE -> DB: Kiểm tra Idempotency-Key
 DB --> BE: Kết quả kiểm tra
@@ -53,46 +57,54 @@ else Key mới hợp lệ
         Mock --> BE: SUCCESS / FAILED
         BE -> BE: Xử lý kết quả thanh toán
     else Gateway = VNPAY
-        BE -> Vnpay: Tạo payment URL
+        BE -> Vnpay: Tạo payment URL (HMAC signature)
         Vnpay --> BE: paymentUrl
         BE --> FE: Trả paymentUrl
-        FE -> Customer: Chuyển trình duyệt sang VNPay
+        FE -> Customer: Chuyển trình duyệt sang VNPay Sandbox
         Customer -> VNPay: Thực hiện thanh toán
 
-        VNPay --> FE: Return URL
-        FE --> Customer: Quay về trang kết quả\nChưa xác nhận thanh toán
-
-        VNPay -> Vnpay: IPN Callback
-        Vnpay -> Vnpay: Xác minh HMAC-SHA512
-        Vnpay -> DB: Kiểm tra giao dịch và trạng thái
-
-        alt IPN hợp lệ, giao dịch thành công
-            Vnpay -> BE: Kết quả SUCCESS đã xác minh
-        else IPN hợp lệ, giao dịch thất bại
-            Vnpay -> BE: Kết quả FAILED đã xác minh
-        else Chữ ký sai hoặc dữ liệu không khớp
-            Vnpay --> VNPay: Từ chối thông báo
+        == Luồng Return URL & UI Polling ==
+        VNPay --> FE: Return URL (Chuyển hướng trình duyệt về Frontend)
+        FE --> Customer: Hiển thị trang chờ kết quả
+        
+        loop UI Polling (Frontend định kỳ hỏi trạng thái)
+            FE -> BE: GET /api/v1/payments/:orderId/status
+            BE --> FE: Trạng thái PENDING (chờ IPN xác nhận)
         end
+
+        == Luồng IPN độc lập (Server-to-Server) ==
+        VNPay -> Vnpay: IPN Callback (Độc lập với Return URL)
+        Vnpay -> Vnpay: Xác minh HMAC-SHA512 chữ ký
+        Vnpay -> DB: Kiểm tra giao dịch và kiểm tra IPN lặp
+
+        alt IPN hợp lệ, chưa xử lý trước đó
+            Vnpay -> DB: Cập nhật Payment SUCCESS, Order PAID
+            Vnpay -> Loyalty: award(order) (Cộng điểm loyalty 1 lần)
+            Vnpay --> VNPay: 200 OK (Xác nhận nhận IPN thành công)
+        else IPN gửi lặp (Đã xử lý giao dịch này rồi)
+            Vnpay --> VNPay: 200 OK (Bỏ qua, không cộng điểm/xử lý lần 2)
+        else Chữ ký sai hoặc dữ liệu lệch
+            Vnpay --> VNPay: 400 Bad Request (Từ chối)
+        end
+        
+        note over FE, BE
+            Khi UI Polling nhận kết quả đã cập nhật từ Backend qua IPN:
+            Frontend hiển thị thành công và xóa giỏ hàng.
+        end note
     end
 
     alt Thanh toán thành công đã xác nhận
-        BE -> DB: Payment SUCCESS
-        BE -> DB: Order PENDING -> PAID\nGhi paid_at và lịch sử
-        BE -> Loyalty: award(order)
-        Loyalty -> DB: Ghi điểm thưởng một lần
         BE --> FE: Trạng thái PAID
         FE -> Customer: Hiển thị xác nhận đơn hàng
         FE -> FE: Xóa giỏ hàng
-    else Thanh toán thất bại đã xác nhận
-        BE -> DB: Payment FAILED
-        BE -> DB: Order -> PAYMENT_FAILED
+    else Thanh toán thất bại hoặc bị hủy
+        BE -> DB: Payment FAILED, Order PAYMENT_FAILED
         BE --> FE: Trạng thái PAYMENT_FAILED
-        FE -> Customer: Hiển thị Thử lại / Hủy đơn
-        note over FE,DB
-            Giữ nguyên liệu và giỏ hàng.
-            Thử lại phải dùng Idempotency-Key mới.
+        FE -> Customer: Hiển thị thông báo & nút "Thử lại"
+        note over FE, DB
+            Giữ nguyên giỏ hàng.
+            Retry thanh toán bắt buộc sinh Idempotency-Key mới.
         end note
     end
 end
-
 @enduml

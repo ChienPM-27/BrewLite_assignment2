@@ -1,4 +1,3 @@
-
 @startuml deployment-production
 title Deployment Diagram - BrewLite
 
@@ -7,13 +6,13 @@ skinparam defaultFontName Arial
 skinparam monochrome true
 skinparam componentStyle rectangle
 
-actor "Khách hàng" as Customer
+actor "Khách hàng\n(Browser)" as Customer
 
-node "Frontend Hosting" {
+node "Vercel (Frontend Hosting)" {
     artifact "Next.js Web" as Web
 }
 
-node "Backend Hosting" {
+node "Render (Backend Hosting)" {
     artifact "NestJS API" as API
 
     component "Payments Module" as Payments
@@ -23,11 +22,14 @@ node "Backend Hosting" {
     component "Loyalty Module" as Loyalty
 }
 
-database "PostgreSQL" as DB
+database "Supabase (PostgreSQL)" as DB
 cloud "VNPay Sandbox" as VNPay
 
 Customer --> Web : HTTPS
-Web --> API : REST API
+Web --> API : REST API (Bearer JWT)
+Customer --> VNPay : Redirect thanh toán (paymentUrl)
+VNPay --> Customer : Return URL (Redirect về Frontend)
+VNPay --> Vnpay : IPN Callback (Server-to-Server)
 
 API --> Payments
 Payments --> Mock
@@ -39,13 +41,10 @@ Orders --> DB
 Payments --> DB
 Loyalty --> DB
 
-Vnpay --> VNPay : Create payment request
-VNPay --> Web : Return URL
-VNPay --> Vnpay : IPN Callback
-
 note right of Vnpay
-  Verify HMAC-SHA512
-  before updating payment status
+  - Create signed paymentUrl
+  - Verify HMAC-SHA512 on IPN
+  - Handle duplicate IPN safely
 end note
 
 note bottom of API
@@ -59,7 +58,7 @@ note bottom of API
 end note
 
 note bottom of VNPay
-  Local: Public tunnel URL
+  Local: Public tunnel URL (ngrok)
   Render: Public Backend URL
 end note
 
