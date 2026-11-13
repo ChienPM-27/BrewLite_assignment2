@@ -171,3 +171,24 @@ $$\text{subtotal} = \sum \text{lineTotal}$$
 | `US-07` | `FR-07` | Xem chi tiết sản phẩm (`AC-07.1`..`07.4`) | `UC-02` (Tùy biến món)<br>`docs/diagrams/class-diagram.puml` | `ProductDetailPage`<br>`ProductDetailView`<br>`ProductGallery`<br>`ProductInfo`<br>`ProductDetailErrorState` | `GET /api/v1/products/:id`<br>`ProductDetailController.getProductById()`<br>`ProductDetailService.getProductById()` | **FE Component (mock `getProductById`)**: `apps/web/src/app/products/[id]/page.test.tsx`<br>**BE Endpoint (`TC-DETAIL-01` 200, `TC-DETAIL-02` 404)**: Chưa có integration test trong `apps/api/src/modules/products/**` (thuộc phạm vi module `products`) |
 | `US-08` | `FR-08` | Tùy biến Size, Topping & Số lượng (`AC-08.1`..`08.4`) | `UC-02` (Tùy biến món)<br>`docs/diagrams/class-diagram.puml` | `SizeSelector`<br>`ToppingSelector`<br>`QuantityStepper`<br>`useProductDetail` | `PricingService.normalizeItem()`<br>`PricingService.calculate()` | `TC-DETAIL-03` (Size S/M/L)<br>`TC-DETAIL-04` (Max 3 topping)<br>`apps/web/src/app/products/[id]/page.test.tsx`<br>`apps/api/src/modules/pricing/pricing.service.spec.ts` |
 | `US-09` | `FR-09` | Tính giá tạm tính UI & Xác thực giá Backend (`AC-09.1`..`09.6`) | `UC-02` (Tùy biến món)<br>`docs/diagrams/class-diagram.puml` | `ProductPrice` (tạm tính)<br>`ProductDetailView` (CTA & dock)<br>`useCartStore.addItem()` | `PricingService.calculate()`<br>(được gọi bắt buộc bởi `OrdersService.create()` tại `POST /api/v1/orders`) | `TC-DETAIL-05` (Xác thực giá BE)<br>`apps/api/src/modules/pricing/pricing.service.spec.ts`<br>`apps/api/src/modules/pricing/pricing.service.int-spec.ts`<br>`apps/web/src/app/products/[id]/page.test.tsx` |
+
+### Ánh xạ AC cuối Sprint 1
+
+Chi tiết từng AC và Test ID được tổng hợp tại [test-scenarios.md](test-scenarios.md). Đây là kịch bản dự kiến/đối chiếu ở Sprint 2, không phải minh chứng đã chạy đủ test.
+
+| Mã FR | AC | Test Case ID |
+| :--- | :--- | :--- |
+| `FR-07` | `AC-07.1` | `TC-DETAIL-01` |
+| `FR-07` | `AC-07.2` | `TC-DETAIL-02` |
+| `FR-07` | `AC-07.3` | `TC-DETAIL-06` |
+| `FR-07` | `AC-07.4` | `TC-DETAIL-07` |
+| `FR-08` | `AC-08.1` | `TC-DETAIL-03` |
+| `FR-08` | `AC-08.2` | `TC-DETAIL-04` |
+| `FR-08` | `AC-08.3` | `TC-DETAIL-08` |
+| `FR-08` | `AC-08.4` | `TC-DETAIL-09` |
+| `FR-09` | `AC-09.1` | `TC-DETAIL-10` |
+| `FR-09` | `AC-09.2` | `TC-DETAIL-11` |
+| `FR-09` | `AC-09.3` | `TC-DETAIL-12` |
+| `FR-09` | `AC-09.4` | `TC-DETAIL-05` |
+| `FR-09` | `AC-09.5` | `TC-DETAIL-05` |
+| `FR-09` | `AC-09.6` | `TC-DETAIL-13` |

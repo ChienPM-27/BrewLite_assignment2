@@ -27,11 +27,11 @@ start
 :Gửi yêu cầu lấy danh mục & danh sách món\n(GET /api/v1/products);
 
 |#F0FDF4|Hệ Thống Backend (NestJS API & DB)|
-:Truy vấn danh mục, sản phẩm và kiểm tra\ntồn kho nguyên liệu theo công thức;
-:Trả về danh sách sản phẩm kèm trạng thái\nkhả dụng (isAvailable);
+:Truy vấn danh mục và sản phẩm\ncó isAvailable = true, stock > 0;
+:Trả về danh sách món đang mở bán;\nKiểm tra nguyên liệu khi tạo Order (FR-14);
 
 |#EFF6FF|Giao Diện Web / PWA (Next.js UI)|
-:Hiển thị danh mục, tìm kiếm và danh sách món\n(Gắn nhãn "Hết hàng" nếu thiếu nguyên liệu);
+:Hiển thị danh mục, tìm kiếm và danh sách\nmón do API trả về;
 
 |#FFFBEB|Khách Hàng (Customer)|
 :Chọn món uống mong muốn để xem chi tiết\n(/products/:id);
@@ -107,7 +107,7 @@ endif
 
 if (Giao dịch thanh toán thành công?) then (Thất bại hoặc Khách hủy\n[Nhánh lỗi 3: Thanh toán thất bại])
     |#F0FDF4|Hệ Thống Backend (NestJS API & DB)|
-    :Cập nhật Payment (status = FAILED);\nChuyển trạng thái đơn: PENDING -> PAYMENT_FAILED\n(qua OrderService.transition); <<#FEF2F2>>
+    :Cập nhật Payment (status = FAILED);\nChuyển trạng thái đơn: PENDING -> PAYMENT_FAILED\n(qua OrderService.transition);\nGiữ nguyên liệu, chỉ hoàn khi CANCELLED; <<#FEF2F2>>
 
     |#EFF6FF|Giao Diện Web / PWA (Next.js UI)|
     :Hiển thị thông báo lỗi thanh toán;\nBẮT BUỘC GIỮ NGUYÊN GIỎ HÀNG (FR-12)\ncho phép thử lại thanh toán hoặc hủy đơn; <<#FEF2F2>>

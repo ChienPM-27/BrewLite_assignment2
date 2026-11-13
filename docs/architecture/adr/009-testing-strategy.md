@@ -171,13 +171,13 @@ Nguyên tắc E2E:
 | Thêm job `e2e` vào CI và đặt làm required check; thêm bước `npm run test:e2e` vào job `integration-test-api` (G10); bật `coverageThreshold` theo lộ trình 3.3 | Minh Chiến | `.github/workflows/ci.yml`, `apps/api/package.json` |
 | Thêm `@vitest/coverage-v8` + `data-testid` cho các nút checkout (hiện `apps/web/src` chưa có `data-testid` nào ngoài file test mẫu) | Owner web của từng trang | `apps/web/**` |
 | Đổi tên test hiện có sang dạng `[TC-xxx-nn] ...`, bổ sung `*.int-spec.ts` cho TC mức Integration và case quyền sở hữu theo G3 | Owner từng module | `apps/api/src/modules/<module>/**`, `apps/api/test/**` |
-| Viết spec cho `VnpayGatewayService` và Integration test IPN theo G11; bổ sung AC + TC ID cho VNPay vào `fr-payment.md` | Gia Kiệt (`SP2-07`) | `apps/api/src/modules/payments/**`, `docs/requirements/fr-payment.md` |
+| Viết spec cho `VnpayGatewayService` và Integration test IPN theo G11; kiểm chứng các AC/TC VNPay đã có trong baseline Sprint 1 | Gia Kiệt (`SP2-07`) | `apps/api/src/modules/payments/**`, `docs/requirements/fr-payment.md` |
 | Cấu hình credentials và tổ chức chạy script fixture trên production; lưu `runId`, đơn test và kết quả teardown sau E2E/manual VNPay | Minh Chiến (cấu hình/quản trị), Quang Huy (E2E), Gia Kiệt (manual VNPay) | Cấu hình môi trường ngoài repo; `docs/evidence/production-check.md`, `docs/evidence/smoke-test.md` |
-| Đồng bộ `test-scenarios.md` với các TC ID đã khai báo trong `fr-*.md` (hiện mới có 41 ID; thiếu ví dụ `TC-HIST-13`, `TC-ORDER-42`) | Quang Huy | `docs/requirements/test-scenarios.md` |
+| Duy trì mapping AC/Test ID theo baseline đã đủ 141 AC FR + 14 AC use-case; bổ sung bằng chứng test thực chạy ở Sprint 2 | Quang Huy | `docs/requirements/test-scenarios.md` |
 
 ### 5.3. Review truy vết container (Deployment Diagram → code)
 
-Kết quả rà [deployment-production.puml](../../diagrams/deployment-production.puml) theo yêu cầu `SP1-08` Task 3; các mục ⚠️ được gửi thành comment PR cho người sở hữu (không sửa file người khác).
+Các nhận xét trong bảng được ghi nhận lúc lập ADR, trước các PR cuối Sprint 1. Trạng thái sau khi đồng bộ ngày 13/11/2026 được ghi tại mục 5.5; việc có nhận xét trong tài liệu không thay thế bằng chứng review/Approve trên GitHub.
 
 | Container / node trên sơ đồ | Code / cấu hình hiện thực | Test kiểm chứng | Kết quả |
 | :--- | :--- | :--- | :--- |
@@ -194,7 +194,7 @@ Kết quả rà [deployment-production.puml](../../diagrams/deployment-productio
 
 ### 5.4. Sai lệch docs ↔ code ghi nhận khi viết ADR
 
-Các điểm dưới đây ảnh hưởng tới kỳ vọng của test; ADR này lấy **code hiện tại** làm chuẩn và gửi comment PR cho người sở hữu (không sửa file người khác).
+Đây là các sai lệch tại thời điểm lập ADR, được giữ lại để truy vết. Đọc cùng trạng thái cập nhật tại mục 5.5; không dùng bảng lịch sử này làm mô tả hiện trạng sau merge.
 
 | Sai lệch | Code hiện tại | Gửi cho |
 | :--- | :--- | :--- |
@@ -203,3 +203,17 @@ Các điểm dưới đây ảnh hưởng tới kỳ vọng của test; ADR này
 | Bảng truy vết của `fr-payment.md` gán FR-19 → `TC-PAY-03`, FR-20 → `TC-PAY-04` | Trong `test-scenarios.md`, `TC-PAY-03`/`04` là case Idempotency-Key (`AC-18.2`/`18.3`); lỗi thanh toán là `TC-PAY-05` | Gia Kiệt |
 | `mock-gateway.service.ts` tham chiếu `TC-PAY-19` trong comment | ID này chưa có trong `fr-payment.md` và `test-scenarios.md` | Gia Kiệt |
 | Quy tắc 10–11 của kế hoạch: không hard-code credential, không phụ thuộc tunnel | `payments.service.ts` còn hard-code email/mật khẩu trang quản trị VNPay Sandbox, in ra log khi khởi động và trả qua `GET /payments/vnpay/tunnel-info` (không có guard); còn gọi `http://tunnel:20241/metrics` dù `docker-compose.yml` không có service `tunnel` | Gia Kiệt, Minh Chiến |
+
+### 5.5. Cập nhật sau review đóng Sprint 1 — 13/11/2026
+
+| Nhận xét trước đây | Trạng thái baseline sau các sửa cuối sprint |
+| :--- | :--- |
+| SRS hoàn kho khi payment lỗi | Đã sửa: `PAYMENT_FAILED` giữ nguyên liệu; chỉ hoàn snapshot khi `CANCELLED`, đúng một lần. |
+| Thiếu AC/TC và contract VNPay | FR Payment có 19 AC; bảng tổng đủ 141 AC FR và 14 AC use-case, gồm `TC-PAY-18` cho IPN đến sau `CANCELLED`. Mapping không đồng nghĩa test đã pass. |
+| Deployment thiếu VNPay/biến env | Sơ đồ đã có VNPay Sandbox, Return URL/IPN và biến `VNPAY_*`; ADR-005 đã mô tả cả Mock/VNPay. |
+| Manifest và đường migration | Sơ đồ dùng `manifest.webmanifest`; migration dùng `DIRECT_URL` qua 5432 Session Mode, runtime CRUD qua 6543. |
+| Health bị hiểu thành DB readiness | Health chỉ trả `data.status = 'ok'`; architecture/deployment đã ghi đúng giới hạn này. |
+| Credential/tunnel hard-code trong Payment | Đợt sửa đóng Sprint 1 loại bỏ endpoint/log tài khoản Sandbox và phần tự dò tunnel khỏi API/UI; VNPay dùng env và URL IPN đăng ký thủ công theo deployment guide. |
+| Nhãn CI và CD | `api/web/integration` là tên gọi tắt; required checks phải dùng đúng tên job trong `ci.yml`. CD/GHCR là kế hoạch Sprint 2/2B, chưa được xác nhận đã chạy. |
+
+Các kiểm thử bổ sung, E2E và manual VNPay ở mục 5.2 vẫn thuộc Sprint 2. Bằng chứng review/merge và kiểm tra của đợt sửa tài liệu được lưu trong [biên bản Sprint 1](../../sprint/sprint-1-review.md).

@@ -11,7 +11,7 @@ export class MockGatewayService {
     const nodeEnvironment =
       this.configService.get<string>('NODE_ENV') ?? 'development';
 
-    // Trong môi trường production, luôn bỏ qua header mô phỏng và xử lý thành công (D8, TC-PAY-19)
+    // Trong môi trường production, luôn bỏ qua header mô phỏng và xử lý thành công (D8, AC-17.2, TC-PAY-01)
     if (nodeEnvironment === 'production') {
       return 'SUCCESS';
     }

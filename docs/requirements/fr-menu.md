@@ -16,7 +16,7 @@
 | Mã yêu cầu | Tên yêu cầu | Mức ưu tiên MoSCoW |
 |---|---|---|
 | FR-04 | Xem danh mục sản phẩm (Category Browsing) | Must Have |
-| FR-05 | Xem danh sách món & kiểm tra tồn kho | Must Have |
+| FR-05 | Xem danh sách món đang mở bán | Must Have |
 | FR-06 | Tìm kiếm món uống theo tên | Should Have |
 ---
 
@@ -37,14 +37,14 @@
 
 ### 2.2. FR-05: Xem danh sách món uống (Product Catalog Listing)
 - **MoSCoW**: Must Have
-- **Mô tả**: Hiển thị danh sách các món uống đang mở bán và còn đủ điều kiện đặt hàng, gồm hình ảnh, tên món và giá cơ bản.
+- **Mô tả**: Hiển thị tên, ảnh và giá cơ bản của các món có `isAvailable = true` và `stock > 0`. API Menu không tính tồn nguyên liệu theo công thức; việc kiểm tra và trừ nguyên liệu diễn ra khi tạo Order (FR-14).
 
 #### 2.2.1. Tiêu chí chấp nhận (Acceptance Criteria)
 | Mã AC | Điều kiện kiểm thử | Kết quả mong đợi |
 |---|---|---|
 | AC-05.1 | Khách hàng truy cập trang Menu và API trả về danh sách sản phẩm hợp lệ. | Hệ thống hiển thị danh sách sản phẩm. |
 | AC-05.2 | Sản phẩm có đầy đủ thông tin tên, hình ảnh và giá cơ sở. | Các thông tin được hiển thị chính xác theo dữ liệu Backend cung cấp. |
-| AC-05.3 | Sản phẩm không đủ nguyên liệu theo định lượng công thức. | Sản phẩm không xuất hiện trong danh sách Menu. |
+| AC-05.3 | Sản phẩm có `isAvailable = false` hoặc `stock <= 0`. | API không trả sản phẩm đó trong danh sách Menu. Thiếu nguyên liệu theo công thức được xử lý khi tạo Order, không dùng làm nhãn/lọc Menu. |
 | AC-05.4 | API trả về danh sách sản phẩm rỗng. | Hệ thống hiển thị thông báo không có sản phẩm. |
 | AC-05.5 | API gặp lỗi hoặc mất kết nối mạng. | Hệ thống hiển thị thông báo lỗi và cho phép thử lại. |
 | AC-05.6 | Khách hàng chọn một sản phẩm có thể đặt hàng. | Hệ thống chuyển đến trang chi tiết của sản phẩm tương ứng. |
@@ -68,6 +68,31 @@
 
 | Mã FR | Tên yêu cầu | Use-Case liên kết | Sơ đồ liên quan | Code / API Endpoint | Test Case ID |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `FR-04` | Xem danh mục món | `UC-01` (Xem thực đơn) | `docs/diagrams/activity-browse.puml` | `GET /api/v1/products` | `TC-MENU-01` |
-| `FR-05` | Danh sách sản phẩm | `UC-01` (Xem thực đơn) | `docs/diagrams/usecase-overview.puml` | `GET /api/v1/products` | `TC-MENU-02` |
-| `FR-06` | Tìm kiếm món uống | `UC-01` (Xem thực đơn) | `docs/diagrams/activity-browse.puml` | Client search / API query | `TC-MENU-03` |
+| `FR-04` | Xem danh mục món | `UC-01` (Xem thực đơn) | `docs/diagrams/activity-browse.puml` | `GET /api/v1/products` | `TC-MENU-01`, `TC-MENU-04`, `TC-MENU-05`, `TC-MENU-06`, `TC-MENU-07`, `TC-MENU-08` |
+| `FR-05` | Danh sách sản phẩm | `UC-01` (Xem thực đơn) | `docs/diagrams/usecase-overview.puml` | `GET /api/v1/products` | `TC-MENU-02`, `TC-MENU-09`, `TC-MENU-10`, `TC-MENU-11`, `TC-MENU-12`, `TC-MENU-13` |
+| `FR-06` | Tìm kiếm món uống | `UC-01` (Xem thực đơn) | `docs/diagrams/activity-browse.puml` | Client search / API query | `TC-MENU-03`, `TC-MENU-14`, `TC-MENU-15`, `TC-MENU-16`, `TC-MENU-17`, `TC-MENU-18` |
+
+### Ánh xạ AC cuối Sprint 1
+
+Chi tiết từng AC và Test ID được tổng hợp tại [test-scenarios.md](test-scenarios.md). Đây là kịch bản dự kiến/đối chiếu ở Sprint 2, không phải minh chứng đã chạy đủ test.
+
+| Mã FR | AC | Test Case ID |
+| :--- | :--- | :--- |
+| `FR-04` | `AC-04.1` | `TC-MENU-01` |
+| `FR-04` | `AC-04.2` | `TC-MENU-04` |
+| `FR-04` | `AC-04.3` | `TC-MENU-05` |
+| `FR-04` | `AC-04.4` | `TC-MENU-06` |
+| `FR-04` | `AC-04.5` | `TC-MENU-07` |
+| `FR-04` | `AC-04.6` | `TC-MENU-08` |
+| `FR-05` | `AC-05.1` | `TC-MENU-02` |
+| `FR-05` | `AC-05.2` | `TC-MENU-09` |
+| `FR-05` | `AC-05.3` | `TC-MENU-10` |
+| `FR-05` | `AC-05.4` | `TC-MENU-11` |
+| `FR-05` | `AC-05.5` | `TC-MENU-12` |
+| `FR-05` | `AC-05.6` | `TC-MENU-13` |
+| `FR-06` | `AC-06.1` | `TC-MENU-03` |
+| `FR-06` | `AC-06.2` | `TC-MENU-14` |
+| `FR-06` | `AC-06.3` | `TC-MENU-15` |
+| `FR-06` | `AC-06.4` | `TC-MENU-16` |
+| `FR-06` | `AC-06.5` | `TC-MENU-17` |
+| `FR-06` | `AC-06.6` | `TC-MENU-18` |

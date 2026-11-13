@@ -24,4 +24,12 @@ describe('Health Check Endpoint (Integration Test via Supertest)', () => {
     expect(res.body.data).toEqual({ status: 'ok' });
     expect(res.body.success).toBe(true);
   });
+
+  it('Không công khai thông tin đăng nhập Sandbox qua endpoint hỗ trợ cũ', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/payments/vnpay/tunnel-info')
+      .expect(404);
+
+    expect(res.body).not.toHaveProperty('data');
+  });
 });

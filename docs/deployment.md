@@ -1,7 +1,7 @@
 # 🚀 HƯỚNG DẪN TRIỂN KHAI HỆ THỐNG BREWLITE (DEPLOYMENT GUIDE)
 
 > **Người phụ trách**: Phạm Minh Chiến (Leader)  
-> **Mã Task**: `SP1-01` (Kế hoạch khởi tạo) & `SP3-01` (Bàn giao chính thức)  
+> **Mã Task**: `SP1-01` (Kế hoạch khởi tạo) & Sprint 2B (Bàn giao chính thức)
 > **Phạm vi áp dụng**: Môi trường triển khai Production (Vercel + Render + Supabase)  
 > **Sơ đồ liên quan**: [docs/diagrams/deployment-production.puml](diagrams/deployment-production.puml), [docs/diagrams/deployment-production.svg](diagrams/deployment-production.svg), [ADR-007](architecture/adr/007-hosting.md)
 
@@ -73,7 +73,7 @@ Response Body: Trả về đầy đủ danh sách 10 món nước thực tế đ
 | `DIRECT_URL` | Có | `postgresql://postgres.tfqdvfsfzoyzkaftylyo:[PWD]@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres` | Chuỗi kết nối Session Pooler (cổng 5432, hỗ trợ IPv4) phục vụ `prisma migrate deploy` |
 | `JWT_SECRET` | Có | `[Chuỗi ngẫu nhiên >= 32 ký tự, lưu trong team-secrets.txt]` | Khóa bí mật dùng để ký và giải mã JWT token |
 | `JWT_EXPIRATION` | Có | `7d` | Thời hạn sống của JWT token (khớp với `auth.module.ts` và `.env.example`) |
-| `CORS_ORIGIN` | Có | `https://brewlite-frontend.vercel.app` | Miền frontend Vercel thật được phép gọi API có kèm credentials |
+| `CORS_ORIGIN` | Không (chưa được code sử dụng) | `https://brewlite-frontend.vercel.app` | Giá trị dự kiến cho whitelist. `main.ts` hiện cấu hình `origin: '*'`, không đọc biến này; JWT được gửi qua Bearer header. |
 
 ### 2.2. Frontend Web (`apps/web` trên Vercel)
 
@@ -131,7 +131,7 @@ Response Body: Trả về đầy đủ danh sách 10 món nước thực tế đ
 ## 5. THEO DÕI SỨC KHỎE HỆ THỐNG & KẾ HOẠCH ROLLBACK
 
 ### 5.1. Giám sát Uptime & Cold Start
-- **Health check endpoint**: `GET /api/v1/health` trả về trạng thái hoạt động của API và kết nối database.
+- **Health check endpoint**: `GET /api/v1/health` trả `data.status = 'ok'`, xác nhận API trả lời; hiện không kiểm tra DB hoặc trả uptime. Dùng `GET /api/v1/products` để kiểm chứng truy vấn DB riêng như mục 1.1.C.
 - **Hạn chế Cold Start**: Gói Render Free sẽ ngủ (idle) sau 15 phút không có request. Kế hoạch khắc phục: sử dụng dịch vụ ping định kỳ (UptimeRobot / Cron script) gọi vào `/api/v1/health` trong khung giờ nghiệm thu.
 
 ### 5.2. Kế hoạch Rollback Dự Kiến

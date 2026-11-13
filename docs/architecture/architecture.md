@@ -41,10 +41,10 @@ Luồng nghiệp vụ cốt lõi: Xem menu → Xem chi tiết/chọn tùy chọn
 - **Công nghệ**: NestJS 11, TypeScript, Prisma ORM, Passport JWT, Jest.
 - **Kiến trúc Module**:
   - `auth`: Xác thực, cấp phát JWT, băm mật khẩu `bcrypt`.
-  - `products`: Quản lý danh mục, danh sách đồ uống, kiểm tra nguyên liệu.
+  - `products`: Đọc danh mục và món đang mở bán (`isAvailable = true`, `stock > 0`); kiểm tra nguyên liệu thuộc bước tạo Order.
   - `pricing`: Tính giá linh hoạt theo size và topping.
   - `orders`: Xử lý tạo đơn, trừ tồn kho nguyên liệu công thức và kiểm soát vòng đời đơn qua State Machine.
-  - `payments`: Tích hợp cổng thanh toán mô phỏng (Mock Gateway) với cơ chế `Idempotency-Key`.
+  - `payments`: Tích hợp Mock Gateway và VNPay Sandbox, xử lý `Idempotency-Key` và callback có chữ ký.
   - `loyalty`: Quản lý điểm thưởng tích luỹ của khách hàng.
   - `promotions`: Quản lý và áp dụng mã giảm giá.
   
@@ -62,8 +62,8 @@ Luồng nghiệp vụ cốt lõi: Xem menu → Xem chi tiết/chọn tùy chọn
 ## 3. LOGGING, HEALTH CHECK VÀ CONFIGURATION
 
 - **Logging**: NestJS built-in Logger ghi nhận chi tiết các luồng giao dịch, IP client và sự kiện chuyển trạng thái đơn hàng.
-- **Health Check**: Tuyến `/api/v1/health` cung cấp thông tin uptime và khả năng kết nối cơ sở dữ liệu phục vụ giám sát container và CD pipeline.
-- **Configuration**: Module `@nestjs/config` đọc biến môi trường từ `.env` với validation chặt chẽ.
+- **Health Check**: `GET /api/v1/health` trả `data.status = 'ok'` qua response wrapper, xác nhận API đang trả lời. Endpoint hiện không đo uptime hoặc kiểm tra kết nối DB; khi kiểm tra DB có thể gọi API đọc sản phẩm riêng.
+- **Configuration**: `ConfigModule.forRoot({ isGlobal: true })` đọc biến môi trường/`.env`; hiện chưa có schema validation chung. DB readiness và validation cấu hình là cải tiến có thể cân nhắc ở Sprint 2 nếu cần.
 
 ---
 

@@ -43,7 +43,7 @@ frame "Ranh Giới Môi Trường Production (Cloud Platforms)" as ProdBoundary 
             * Target URL: https://brewlite-frontend.vercel.app (HTTPS 443)
             * SSL: Managed Let's Encrypt (Auto-renew)
             * Env: NEXT_PUBLIC_API_URL
-            * PWA: manifest.json, installable
+            * PWA: manifest.webmanifest, installable
         end note
     }
 
@@ -59,7 +59,7 @@ frame "Ranh Giới Môi Trường Production (Cloud Platforms)" as ProdBoundary 
             NestApp -down-> PaymentsModule : /api/v1/payments/*
             PaymentsModule -down-> MockPay : Xử lý Mock
             PaymentsModule -down-> VnpayService : Tạo URL / xác minh chữ ký
-            NestApp -down-> HealthCheck : Kiểm tra trạng thái Uptime
+            NestApp -down-> HealthCheck : API trả lời (status: ok)
         }
 
         component "Render Log Stream\n(stdout / stderr logging)" as RenderLog
@@ -114,7 +114,7 @@ frame "Ranh Giới Tự Động Hóa CI/CD (GitHub Ecosystem)" as CIBoundary {
 
     node "GitHub Actions Runners (Ubuntu VM)" as GH_Actions {
         component "CI Workflow (.github/workflows/ci.yml)\n[Job: api, Job: web, Job: integration]" as CI_Job
-        component "CD Workflow (.github/workflows/cd.yml)\n[Docker Build -> GHCR Push -> Deploy Hook -> Smoke Test]" as CD_Job
+        component "CD Workflow dự kiến (Sprint 2/2B)\n[Docker Build -> GHCR Push -> Deploy Hook -> Smoke Test]" as CD_Job
     }
 
     node "GitHub Container Registry (GHCR)" as GH_Registry {
@@ -174,6 +174,6 @@ GHCR ..> RenderContainer : Pull Docker Image
 CD_Job --> RenderNode : Trigger Deploy Webhook
 CD_Job --> VercelNode : Trigger Deploy Webhook / CLI
 CD_Job --> HealthCheck : Automated Smoke Test (/api/v1/health)
-CD_Job ..> PgPooler : prisma migrate deploy (khi release)
+CD_Job ..> SupabaseDB : prisma migrate deploy (DIRECT_URL)\nTCP SSL 5432 - Session Mode
 
 @enduml
