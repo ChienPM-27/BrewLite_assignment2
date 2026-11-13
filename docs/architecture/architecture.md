@@ -9,6 +9,7 @@
 ## 1. TỔNG QUAN KIẾN TRÚC (C4 CONTAINER OVERVIEW)
 
 Hệ thống BrewLite được thiết kế theo mô hình phân tầng hiện đại (Modern Layered Monorepo Architecture) nhằm tối ưu khả năng mở rộng, độc lập kiểm thử và dễ dàng triển khai.
+Hệ thống vận hành theo mô hình Client–Server: Frontend Next.js 15 giao tiếp với Backend NestJS 11 qua REST API; Backend truy cập PostgreSQL 16 thông qua Prisma ORM. Riêng Backend được tổ chức theo kiến trúc Modular Monolith: các phân hệ được tách thành module có trách nhiệm rõ ràng nhưng chạy và triển khai chung trong một ứng dụng NestJS.
 
 ```text
 [ Người Dùng (Mobile / Desktop) ]
@@ -20,17 +21,20 @@ Hệ thống BrewLite được thiết kế theo mô hình phân tầng hiện �
 [ Backend API (NestJS Modular - Render Container) ]
                 │
                 ├───► [ Mock Payment Gateway (In-Memory / Deterministic) ]
+                |
+                |<---> [ VNPay Sandbox ]
+                |       (Hệ thống bên ngoài)
                 │
                 ▼ (Prisma ORM - Connection Pooler / Direct)
 [ Database (PostgreSQL 16 - Supabase) ]
 ```
-
+Luồng nghiệp vụ cốt lõi: Xem menu → Xem chi tiết/chọn tùy chọn → Giỏ hàng → Tạo đơn → Thanh toán → Xem trạng thái và lịch sử đơn hàng. Backend chịu trách nhiệm xác thực các quy tắc về giá, tồn kho, thanh toán và trạng thái đơn; không tin cậy các giá trị quan trọng chỉ do Frontend gửi lên.
 ---
 
-## 2. CÁC THÀNH PHẦN CONTAINER CHÍNH
+## 2. CÁC THÀNH PHẦN KIẾN TRÚC CHÍNH
 
 ### 2.1. Frontend Web & PWA (`apps/web`)
-- **Công nghệ**: Next.js 15 (App Router), React 19, Tailwind CSS, Zustand, Vitest.
+- **Công nghệ**: Next.js 15 (App Router), React 19, Tailwind CSS, Zustand, Vitest; môi trường build/chạy trong Dockerfile sử dụng Node.js 22..
 - **Vai trò**: Cung cấp giao diện gọi món tối ưu cho thiết bị di động, quản lý giỏ hàng cục bộ bền vững qua Zustand `persist`, xử lý giao diện PWA (Progressive Web App).
 
 ### 2.2. Backend API Gateway & Services (`apps/api`)
@@ -43,6 +47,7 @@ Hệ thống BrewLite được thiết kế theo mô hình phân tầng hiện �
   - `payments`: Tích hợp cổng thanh toán mô phỏng (Mock Gateway) với cơ chế `Idempotency-Key`.
   - `loyalty`: Quản lý điểm thưởng tích luỹ của khách hàng.
   - `promotions`: Quản lý và áp dụng mã giảm giá.
+  
 
 ### 2.3. Cơ sở dữ liệu (PostgreSQL 16 - Supabase)
 - **Công nghệ**: PostgreSQL 16 quản lý bởi Prisma Schema.
@@ -64,5 +69,8 @@ Hệ thống BrewLite được thiết kế theo mô hình phân tầng hiện �
 
 ## 4. ĐÁNH ĐỔI KIẾN TRÚC (TRADE-OFFS)
 
-1. **Monorepo vs Microservices**: Chọn Monorepo vì quy mô nhóm 7 người, đơn giản hóa quy trình CI/CD và chia sẻ contract giữa frontend/backend mà không tốn chi phí quản lý nhiều cluster.
-2. **State Machine tập trung vs Event-Driven**: Chọn kiểm soát trạng thái đơn tập trung tại `OrderService.transition()` để đảm bảo tính bất biến và dễ viết test assertion so với kiến trúc phân tán.
+1. **Modular Monolith vs Microservices**: Chọn Modular Monolith với NestJS để phân chia nghiệp vụ thành các module có trách nhiệm rõ ràng nhưng triển khai chung trong một ứng dụng. Giải pháp phù hợp với quy mô nhóm 7 người, giảm độ phức tạp triển khai, giao tiếp và quản lý giao dịch so với Microservices. Đánh đổi là các module chưa thể triển khai và mở rộng độc lập.
+
+2. **Monorepo vs Multi-repo**: Chọn Monorepo để quản lý Frontend, Backend và tài liệu trong cùng repository, thuận tiện phối hợp phát triển, kiểm thử và quản lý phiên bản. Đánh đổi là cần quy định rõ phạm vi thay đổi và cấu hình CI để tránh ảnh hưởng giữa các ứng dụng.
+
+3. **State Machine tập trung vs Event-Driven**: Chọn quản lý chuyển trạng thái đơn hàng tập trung trong Backend để kiểm soát các chuyển trạng thái hợp lệ, lưu lịch sử và thuận tiện kiểm thử. Đánh đổi là khi mở rộng sang xử lý bất đồng bộ phức tạp, hệ thống có thể cần bổ sung cơ chế sự kiện hoặc hàng đợi.

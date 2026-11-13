@@ -1,0 +1,130 @@
+@startuml activity-e2e
+title Sơ Đồ Hoạt Động Luồng Nghiệp Vụ Toàn Trình (End-to-End Activity Diagram — BrewLite)
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam conditionStyle inside
+skinparam activity {
+    BackgroundColor #FFFFFF
+    BorderColor #2B6CB0
+    ArrowColor #2D3748
+    StartColor #2B6CB0
+    EndColor #2D3748
+    DiamondBackgroundColor #FFFBEB
+    DiamondBorderColor #D97706
+}
+skinparam swimlane {
+    BorderColor #CBD5E1
+    TitleFontSize 13
+    TitleFontStyle bold
+}
+
+|#FFFBEB|Khách Hàng (Customer)|
+start
+:Truy cập ứng dụng BrewLite (Web / PWA)\nvà mở trang Thực đơn (/menu);
+
+|#EFF6FF|Giao Diện Web / PWA (Next.js UI)|
+:Gửi yêu cầu lấy danh mục & danh sách món\n(GET /api/v1/products);
+
+|#F0FDF4|Hệ Thống Backend (NestJS API & DB)|
+:Truy vấn danh mục, sản phẩm và kiểm tra\ntồn kho nguyên liệu theo công thức;
+:Trả về danh sách sản phẩm kèm trạng thái\nkhả dụng (isAvailable);
+
+|#EFF6FF|Giao Diện Web / PWA (Next.js UI)|
+:Hiển thị danh mục, tìm kiếm và danh sách món\n(Gắn nhãn "Hết hàng" nếu thiếu nguyên liệu);
+
+|#FFFBEB|Khách Hàng (Customer)|
+:Chọn món uống mong muốn để xem chi tiết\n(/products/:id);
+
+|#EFF6FF|Giao Diện Web / PWA (Next.js UI)|
+:Hiển thị thông tin chi tiết món, lựa chọn\nKích cỡ (S / M / L) và Topping (tối đa 3);
+
+|#FFFBEB|Khách Hàng (Customer)|
+:Tùy chọn Size, Topping, số lượng\nvà nhấn "Thêm vào giỏ hàng";
+
+|#EFF6FF|Giao Diện Web / PWA (Next.js UI)|
+:Cập nhật giỏ hàng trong Zustand (useCartStore):\n- Gộp dòng nếu trùng Product + Size + Topping\n- Tự động tính tổng tiền tạm tính\n- Lưu bền vững vào localStorage;
+
+|#FFFBEB|Khách Hàng (Customer)|
+:Mở trang Giỏ hàng (/cart), kiểm tra hoặc\nsửa/xóa món và nhấn "Tiến hành đặt hàng";
+
+|#EFF6FF|Giao Diện Web / PWA (Next.js UI)|
+:Kiểm tra trạng thái đăng nhập (JWT Token)\ntrong useAuthStore;
+
+if (Đã đăng nhập (có JWT hợp lệ)?) then (Chưa đăng nhập\n[Nhánh lỗi 1: Chưa xác thực])
+    |#EFF6FF|Giao Diện Web / PWA (Next.js UI)|
+    :Giữ nguyên giỏ hàng trong localStorage;\nChuyển hướng sang trang Đăng nhập / Đăng ký\n(/auth/login?next=/checkout); <<#FEF2F2>>
+
+    |#FFFBEB|Khách Hàng (Customer)|
+    :Nhập Email & Mật khẩu để Đăng nhập\nhoặc Đăng ký tài khoản mới;
+
+    |#F0FDF4|Hệ Thống Backend (NestJS API & DB)|
+    :Xác thực thông tin (POST /api/v1/auth/login\nhoặc /register, băm mật khẩu bcrypt 10 rounds);\nCấp phát chuỗi JWT Access Token (hạn 7d);
+
+    |#EFF6FF|Giao Diện Web / PWA (Next.js UI)|
+    :Lưu JWT Token & thông tin User vào useAuthStore;\nĐiều hướng quay lại trang Thanh toán (/checkout);
+else (Đã đăng nhập)
+    |#EFF6FF|Giao Diện Web / PWA (Next.js UI)|
+    :Điều hướng trực tiếp tới trang\nXác nhận đặt hàng (/checkout);
+endif
+
+|#FFFBEB|Khách Hàng (Customer)|
+:Nhập mã khuyến mãi (nếu có), chọn phương thức\nthanh toán (Ví điện tử / Thẻ) và nhấn "Thanh toán ngay";
+
+|#EFF6FF|Giao Diện Web / PWA (Next.js UI)|
+:Gửi yêu cầu tạo đơn hàng (POST /api/v1/orders)\nkèm Header Authorization: Bearer <token>;
+
+|#F0FDF4|Hệ Thống Backend (NestJS API & DB)|
+:JwtAuthGuard xác thực token;\nPricingService tính lại đơn giá & PromotionsService\nkiểm tra mã khuyến mãi trên Server;
+:Mở Database Transaction (ACID):\nKiểm tra công thức & trừ tồn kho nguyên liệu\nnguyên tử (deductIngredients);
+
+if (Nguyên liệu trong kho đủ đáp ứng?) then (Không đủ nguyên liệu\n[Nhánh lỗi 2: Hết hàng])
+    |#F0FDF4|Hệ Thống Backend (NestJS API & DB)|
+    :Rollback Transaction (không trừ kho, không tạo đơn);\nTrả về lỗi 400 Bad Request kèm tên nguyên liệu hết; <<#FEF2F2>>
+
+    |#EFF6FF|Giao Diện Web / PWA (Next.js UI)|
+    :Hiển thị thông báo món/nguyên liệu vừa hết hàng;\nGiữ nguyên giỏ hàng để khách điều chỉnh; <<#FEF2F2>>
+
+    |#FFFBEB|Khách Hàng (Customer)|
+    :Quay lại giỏ hàng để đổi món\nhoặc giảm số lượng;
+    stop
+else (Đủ tồn kho nguyên liệu)
+    |#F0FDF4|Hệ Thống Backend (NestJS API & DB)|
+    :Tạo bản ghi Order (status = PENDING),\nOrderItem, OrderIngredientUsage;\nCommit Transaction và trả về thông tin Order; <<#F0FDF4>>
+endif
+
+|#EFF6FF|Giao Diện Web / PWA (Next.js UI)|
+:Lưu pendingOrderId, sinh khóa chống trùng lặp\nIdempotency-Key (UUIDv4) và gửi yêu cầu\nthanh toán (POST /api/v1/payments);
+
+|#F0FDF4|Hệ Thống Backend (NestJS API & DB)|
+:Kiểm tra tính duy nhất của Idempotency-Key;\nTạo bản ghi Payment (status = PENDING)\nvà gửi yêu cầu sang Cổng thanh toán;
+
+|#FAF5FF|Cổng Thanh Toán (Payment Gateway)|
+:Xử lý giao dịch thanh toán mô phỏng\n(Mock Gateway / VNPay Sandbox)\nvà trả về kết quả giao dịch;
+
+|#F0FDF4|Hệ Thống Backend (NestJS API & DB)|
+:Xác thực chữ ký / kết quả phản hồi\ntừ Cổng thanh toán;
+
+if (Giao dịch thanh toán thành công?) then (Thất bại hoặc Khách hủy\n[Nhánh lỗi 3: Thanh toán thất bại])
+    |#F0FDF4|Hệ Thống Backend (NestJS API & DB)|
+    :Cập nhật Payment (status = FAILED);\nChuyển trạng thái đơn: PENDING -> PAYMENT_FAILED\n(qua OrderService.transition); <<#FEF2F2>>
+
+    |#EFF6FF|Giao Diện Web / PWA (Next.js UI)|
+    :Hiển thị thông báo lỗi thanh toán;\nBẮT BUỘC GIỮ NGUYÊN GIỎ HÀNG (FR-12)\ncho phép thử lại thanh toán hoặc hủy đơn; <<#FEF2F2>>
+
+    |#FFFBEB|Khách Hàng (Customer)|
+    :Nhận thông báo lỗi và chọn\n"Thử lại thanh toán" hoặc "Hủy đơn hàng";
+    stop
+else (Thanh toán thành công [SUCCESS])
+    |#F0FDF4|Hệ Thống Backend (NestJS API & DB)|
+    :Cập nhật Payment (status = SUCCESS);\nChuyển trạng thái đơn: PENDING -> PAID;\nTích lũy điểm thưởng Loyalty (1.000đ = 1 điểm);\nTrả về biên nhận giao dịch hoàn tất; <<#F0FDF4>>
+endif
+
+|#EFF6FF|Giao Diện Web / PWA (Next.js UI)|
+:Xóa sạch giỏ hàng (useCartStore.clearCart());\nĐiều hướng sang trang Chi tiết & Theo dõi đơn\n(/orders/:id);
+
+|#FFFBEB|Khách Hàng (Customer)|
+:Xem biên nhận thanh toán, lịch sử đơn (/orders)\nvà theo dõi tiến trình trạng thái đơn hàng\n(PAID -> PREPARING -> READY -> COMPLETED);
+stop
+
+@enduml

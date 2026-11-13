@@ -50,3 +50,6 @@ postgres_data/
 # Team secrets files
 *secret*.txt
 *secrets*.txt
+
+# Microsoft Office lock files
+~$*
