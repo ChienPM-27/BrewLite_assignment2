@@ -139,3 +139,33 @@ Khi phiên bản release mới phát sinh lỗi nghiêm trọng:
 1. **Rollback Backend (Render)**: Truy cập Render Dashboard ➔ `brewlite-api` ➔ chọn bản deploy ổn định liền trước ➔ bấm **Rollback to this deploy** (hoặc chuyển image tag về commit SHA ổn định trước đó).
 2. **Rollback Frontend (Vercel)**: Truy cập Vercel Dashboard ➔ `apps/web` ➔ chọn deployment ổn định trước đó ➔ chọn **Promote to Production**.
 3. **Kiểm tra phục hồi**: Chạy lại kịch bản kiểm thử khói `scripts/smoke-test.sh` trên URL production để xác nhận hệ thống đã hoạt động bình thường. Ghi nhận nhật ký vào `docs/evidence/rollback.md`.
+
+---
+
+## 6. CẤU HÌNH VNPAY SANDBOX (SP1-07)
+
+Phần này bổ sung tích hợp payment vào hạ tầng Vercel/Render/Supabase ở trên. VNPay Sandbox là dịch vụ bên ngoài, không chạy trong container API.
+
+### 6.1. Biến môi trường Backend
+
+| Biến | Giá trị / ý nghĩa |
+|---|---|
+| `VNPAY_URL` | `https://sandbox.vnpayment.vn/paymentv2/vpcpay.html` — URL gateway Sandbox |
+| `VNPAY_TMN_CODE` | Terminal code do VNPay Sandbox cấp |
+| `VNPAY_HASH_SECRET` | Secret tạo URL và xác minh HMAC-SHA512, chỉ lưu tại Backend |
+| `VNPAY_RETURN_URL` | `https://brewlite-frontend.vercel.app/payment/vnpay-return` trên Vercel; local dùng URL Frontend tương ứng |
+
+Khai báo trên Render Environment hoặc file `.env` local đã gitignore; không commit secret thật và không đưa HASH_SECRET vào biến `NEXT_PUBLIC_*`. Đăng ký merchant/tài khoản thử nghiệm theo hướng dẫn tại [VNPay Sandbox](https://sandbox.vnpayment.vn/).
+
+### 6.2. IPN URL public và Return URL
+
+- **Production Sandbox trên Render:** đăng ký `https://brewlite.onrender.com/api/v1/payments/vnpay/ipn` làm IPN URL trên portal merchant.
+- **Local:** Backend localhost không nhận được request Internet trực tiếp; dùng HTTPS tunnel trỏ về cổng Backend 4000 và đăng ký `https://<TUNNEL_HOST>/api/v1/payments/vnpay/ipn`. Khi hostname tunnel thay đổi, cập nhật đăng ký IPN. Tunnel là công cụ kiểm thử local, không thay thế URL Render.
+- **Return URL:** điều hướng browser về trang Frontend; không phải địa chỉ webhook Backend. IPN và Return URL có thể tới theo bất kỳ thứ tự nào.
+- Frontend code freeze có fallback gửi query Return URL có chữ ký tới cùng endpoint IPN trước khi đọc `GET /api/v1/payments/:paymentId` kèm JWT. Backend luôn xác minh chữ ký/thông tin trước khi cập nhật kết quả.
+
+### 6.3. Kiểm chứng theo code freeze
+
+Cần lưu minh chứng Sandbox cho thành công, lỗi/hủy và IPN lặp. HMAC hợp lệ không tự đồng nghĩa giao dịch thành công: cả `vnp_ResponseCode` và `vnp_TransactionStatus` phải bằng `00`. Kết quả lỗi/hủy được xác minh chuyển Payment FAILED, Order PENDING → PAYMENT_FAILED và không cộng loyalty.
+
+Handler trả `RspCode/Message` theo ADR-005. API hiện bọc kết quả trong `data` của response envelope; cần kiểm chứng VNPay nhận đúng phản hồi khi smoke test. HTTP 200 đơn lẻ chưa chứng minh Sandbox đã chấp nhận callback. Theo code đã đồng bộ main, giỏ được giữ khi redirect VNPay và chỉ xóa sau khi Backend trả Payment SUCCESS.

@@ -51,10 +51,14 @@ frame "Ranh Giới Môi Trường Production (Cloud Platforms)" as ProdBoundary 
     node "Render Web Service (Containerized)" as RenderNode {
         node "Docker Container (Image: node:22-slim, Debian)" as RenderContainer {
             component "NestJS REST API Gateway\n[apps/api, Port 4000]" as NestApp
+            component "Payments Module\n(Controller + PaymentsService)" as PaymentsModule
             component "Mock Payment Gateway\n(Embedded Service, x-mock-outcome)" as MockPay
+            component "VNPay Gateway Service\n(Create URL / Verify HMAC)" as VnpayService
             component "Health Monitoring Endpoint\n(GET /api/v1/health)" as HealthCheck
             
-            NestApp -down-> MockPay : Xử lý thanh toán mô phỏng
+            NestApp -down-> PaymentsModule : /api/v1/payments/*
+            PaymentsModule -down-> MockPay : Xử lý Mock
+            PaymentsModule -down-> VnpayService : Tạo URL / xác minh chữ ký
             NestApp -down-> HealthCheck : Kiểm tra trạng thái Uptime
         }
 
@@ -67,6 +71,8 @@ frame "Ranh Giới Môi Trường Production (Cloud Platforms)" as ProdBoundary 
             * Container Port: 4000 (node:22-slim)
             * Image Tag: ghcr.io/chienpm-27/brewlite-api:<commit-sha>
             * Env: PORT, DATABASE_URL, DIRECT_URL, JWT_SECRET, JWT_EXPIRATION
+            * VNPay: VNPAY_URL, VNPAY_TMN_CODE,
+              VNPAY_HASH_SECRET, VNPAY_RETURN_URL (Backend only)
             * Health Check Path: /api/v1/health
         end note
     }
@@ -135,12 +141,26 @@ frame "Ranh Giới Môi Trường Phát Triển Cục Bộ (Local Machine)" as L
 ' ==============================================================================
 ' CONNECTIONS & FLOWS
 ' ==============================================================================
+cloud "VNPay Sandbox\n(External Payment Gateway)" as VNPaySandbox
+
 ' User traffic
 Client --> NextApp : HTTPS 443 (Giao diện Web & PWA)
 Client --> NestApp : HTTPS 443 (Gọi REST API / Bearer JWT)
 
 ' Web to API
 NextApp --> NestApp : HTTPS 443 (REST API: /api/v1/*)\n[Headers: Bearer JWT, Idempotency-Key]
+
+' VNPay: redirect browser, callback API; gateway service is internal
+Client --> VNPaySandbox : HTTPS redirect paymentUrl
+VNPaySandbox --> Client : Return URL về Frontend
+VNPaySandbox --> NestApp : HTTPS GET /api/v1/payments/vnpay/ipn\nIPN server-to-server
+PaymentsModule --> PgPooler : Payment / Order / Loyalty transaction
+note right of VNPaySandbox
+    Return URL và IPN độc lập.
+    UI gửi query có chữ ký tới API như fallback,
+    rồi GET /payments/:paymentId kèm JWT.
+    HASH_SECRET không đưa lên Frontend.
+end note
 
 ' API to Supabase
 NestApp --> PgPooler : TCP SSL 6543 (DATABASE_URL)\nRuntime CRUD Queries (Transaction Pooler)

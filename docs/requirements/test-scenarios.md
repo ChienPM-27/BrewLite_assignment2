@@ -42,11 +42,35 @@
 | | `AC-15.1` | Áp dụng mã giảm giá hợp lệ trừ đúng tiền | Unit | `TC-ORDER-04` | `apps/api/src/modules/promotions/**` |
 | | `AC-16.1` | Chuyển đổi trạng thái đúng thứ tự state machine | Unit | `TC-ORDER-05` | `apps/api/src/modules/orders/**` |
 | | `AC-16.3` | Chuyển sai trạng thái bị chặn với 409 Conflict | Unit | `TC-ORDER-06` | `apps/api/src/modules/orders/**` |
-| **Payment**| `AC-17.1` | Thanh toán mô phỏng thành công chuyển đơn sang PAID | Integration | `TC-PAY-01` | `apps/api/src/modules/payments/**` |
-| | `AC-18.1` | Thiếu Idempotency-Key trả về 400 Bad Request | Integration | `TC-PAY-02` | `apps/api/src/modules/payments/**` |
-| | `AC-18.2` | Gửi 2 lần cùng Idempotency-Key chỉ tạo 1 payment | Integration | `TC-PAY-03` | `apps/api/src/modules/payments/**` |
-| | `AC-18.3` | Cùng Idempotency-Key nhưng khác body trả về 409 | Integration | `TC-PAY-04` | `apps/api/src/modules/payments/**` |
-| | `AC-19.1` | Mô phỏng thất bại trả về PAYMENT_FAILED | Integration | `TC-PAY-05` | `apps/api/src/modules/payments/**` |
+| **Payment** | `AC-17.1` | Chọn E_WALLET / BANK_CARD; request gửi đúng method | Component | `TC-PAY-15` | `apps/web/src/app/checkout/payment/**` |
+| | `AC-17.2` | Mock mặc định SUCCESS; X-Mock-Outcome: FAILED trong môi trường test trả FAILED | Integration | `TC-PAY-01`, `TC-PAY-05` | `apps/api/src/modules/payments/**` |
+| | `AC-17.3` | Kiểm thử Mock độc lập trên CI, không gọi VNPay hoặc cần merchant secret | Unit/Integration | `TC-PAY-16` | `apps/api/src/modules/payments/**` |
+| | `AC-17.4` | Tạo URL VNPay ký hợp lệ và chuyển browser tới Sandbox | Integration/E2E | `TC-PAY-07` | `apps/api/src/modules/payments/vnpay/**`, `apps/web/src/app/checkout/payment/**` |
+| | `AC-17.5` | POST gateway VNPAY lưu Payment PENDING, transactionRef = paymentId, trả id/paymentUrl | Integration | `TC-PAY-07` | `apps/api/src/modules/payments/**` |
+| | `AC-17.6` | Đọc cấu hình VNPay từ env Backend; HASH_SECRET không đưa vào Frontend | Unit/Config | `TC-PAY-06` | `apps/api/src/modules/payments/vnpay/**`, `docs/deployment.md` |
+| | `AC-18.1` | Thiếu/rỗng Idempotency-Key trả 400; không tạo Payment | Integration | `TC-PAY-02` | `apps/api/src/modules/payments/**` |
+| | `AC-18.2` | Cùng key/body trả kết quả cũ, chỉ 1 Payment; không gọi Gateway/cộng điểm lại | Integration | `TC-PAY-03` | `apps/api/src/modules/payments/**` |
+| | `AC-18.3` | Cùng key nhưng khác orderId/method/gateway trả 409 Conflict | Integration | `TC-PAY-04` | `apps/api/src/modules/payments/**` |
+| | `AC-18.4` | IPN gửi lặp hoặc đồng thời: chỉ 1 lần cập nhật/cộng điểm; lần đã xử lý trả RspCode 02 | Integration/Concurrency | `TC-PAY-08` | `apps/api/src/modules/payments/**` |
+| | `AC-19.1` | Mock FAILED hoặc IPN lỗi/hủy có chữ ký hợp lệ cập nhật Payment FAILED | Integration | `TC-PAY-05`, `TC-PAY-17` | `apps/api/src/modules/payments/**` |
+| | `AC-19.2` | Giao dịch lỗi/hủy đã xác minh, Order PENDING chuyển PAYMENT_FAILED; không cộng loyalty | Integration | `TC-PAY-05`, `TC-PAY-17` | `apps/api/src/modules/payments/**` |
+| | `AC-19.3` | Thất bại/hủy giữ nguyên giỏ ở cả Mock và VNPay; redirect VNPay chưa xóa giỏ, chỉ SUCCESS mới xóa | Component/E2E | `TC-CART-04` | `apps/web/src/app/checkout/payment/**`, `apps/web/src/app/payment/vnpay-return/**` |
+| | `AC-19.4` | Retry cùng Order bằng key mới: PAYMENT_FAILED → PENDING; không trừ kho lần nữa | Integration/Component | `TC-PAY-09` | `apps/api/src/modules/payments/**`, `apps/web/src/app/checkout/payment/**` |
+| | `AC-19.5` | Chưa có xác nhận qua IPN/fallback thì Payment vẫn PENDING; hết polling không tự kết luận FAILED/SUCCESS | Integration/Component | `TC-PAY-10` | `apps/api/src/modules/payments/**`, `apps/web/src/app/payment/vnpay-return/**` |
+| | `AC-20.1` | HMAC sai bị từ chối RspCode 97, không đổi dữ liệu; HMAC hợp lệ vẫn phải xét mã kết quả | Unit/Integration | `TC-PAY-11`, `TC-PAY-12`, `TC-PAY-17` | `apps/api/src/modules/payments/vnpay/**`, `apps/api/src/modules/payments/**` |
+| | `AC-20.2` | vnp_TxnRef không có Payment VNPAY trả 01; số tiền lệch trả 04; không đổi Payment/Order/loyalty | Integration | `TC-PAY-13` | `apps/api/src/modules/payments/**` |
+| | `AC-20.3` | Return URL đưa về Frontend; query có chữ ký gửi fallback qua Backend, sau đó GET Payment theo paymentId/JWT trước khi hiển thị | Component/Integration | `TC-PAY-14` | `apps/web/src/app/payment/vnpay-return/**`, `apps/web/src/services/payment.service.ts` |
+| | `AC-20.4` | IPN hoạt động độc lập với browser: mã 00/00 cập nhật Payment SUCCESS, Order PENDING → PAID và cộng loyalty 1 lần | Integration | `TC-PAY-11`, `TC-PAY-08` | `apps/api/src/modules/payments/**` |
 | **History**| `AC-21.1` | Xem danh sách đơn hàng đã mua | Integration | `TC-HIST-01` | `apps/api/src/modules/orders/history/**` |
 | | `AC-21.3` | Không xem được đơn của người dùng khác | Integration | `TC-HIST-02` | `apps/api/src/modules/orders/history/**` |
 | | `AC-22.1` | Xem chi tiết đơn hàng cũ và lịch sử trạng thái | Integration | `TC-HIST-03` | `apps/api/src/modules/orders/history/**` |
+
+## 2. GHI CHÚ PAYMENT THEO CODE FREEZE
+
+Các Test Case ID là kịch bản cần hiện thực/kiểm chứng, không phải bằng chứng test đã chạy hoặc đã pass. Mapping Payment có đủ 19 AC từ fr-payment.md; nhiều AC có thể dùng cùng Test ID nếu test có đủ assertion.
+
+- `TC-PAY-11`: IPN có HMAC, tham chiếu và số tiền hợp lệ, mã kết quả `00/00`, Order `PENDING` → Payment `SUCCESS`, Order `PAID`, loyalty một lần.
+- `TC-PAY-17`: IPN lỗi/hủy vẫn có HMAC hợp lệ → Payment `FAILED`, Order `PAYMENT_FAILED`, không cộng loyalty. `RspCode: '00'` xác nhận xử lý thông báo, không phải giao dịch thành công.
+- `TC-PAY-18` (bổ sung cho UC-ORD-01, Exc-10 / AC-UC-14): IPN thành công đến sau Order `CANCELLED` → Payment `SUCCESS`, ghi cần hoàn tiền thủ công, giữ Order `CANCELLED`, không cộng loyalty, handler trả `RspCode: '00'`.
+- `TC-CART-04` cần kiểm chứng yêu cầu giữ giỏ ở cả Mock và VNPay. Code đã đồng bộ main giữ giỏ khi redirect VNPay và chỉ xóa khi Backend trả SUCCESS; cần assert cả giỏ và trạng thái đơn khi lỗi/hủy.
+- Smoke test Sandbox cần kiểm tra cả body IPN: `TransformInterceptor` hiện bọc `RspCode/Message` trong `data`. HTTP 200 đơn lẻ chưa chứng minh cổng đã chấp nhận callback.

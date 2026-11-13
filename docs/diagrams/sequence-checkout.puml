@@ -1,0 +1,208 @@
+@startuml
+title Checkout & Payment — code freeze (JWT, IPN, polling, retry)
+hide footbox
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam maxMessageSize 320
+skinparam sequence {
+    ParticipantBackgroundColor white
+    LifeLineBorderColor #4A5568
+    ArrowColor #2D3748
+}
+
+actor "Khách hàng" as Customer
+participant "Next.js UI" as FE
+participant "NestJS API\nControllers" as API
+participant "PaymentsService" as Payments
+database "PostgreSQL" as DB
+participant "VnpayGatewayService" as Gateway
+participant "VNPay Sandbox" as VNPay
+
+== 1. JWT, validate và tạo Order ==
+Customer -> FE: Xác nhận đặt hàng
+FE -> API: POST /api/v1/orders\nAuthorization: Bearer JWT
+break JWT thiếu, sai hoặc hết hạn
+    API --> FE: 401 Unauthorized
+    FE --> Customer: Yêu cầu đăng nhập lại
+end
+API -> API: Validate DTO, tính giá tại Backend
+break Dữ liệu sai hoặc không đủ nguyên liệu
+    API --> FE: 400 Bad Request; không tạo Order, không trừ kho
+    FE --> Customer: Hiển thị lỗi; giữ giỏ
+end
+API -> DB: Transaction: trừ kho + tạo Order PENDING
+DB --> API: orderId, finalAmount
+API --> FE: 201 Created (Order)
+FE --> Customer: Trang /checkout/payment?orderId=...
+
+== 2. Tạo Payment hoặc replay ==
+Customer -> FE: Chọn E_WALLET / BANK_CARD và gateway
+FE -> API: POST /api/v1/payments\nBearer JWT + Idempotency-Key\n{orderId, method, gateway}
+break JWT không hợp lệ
+    API --> FE: 401; không tạo Payment
+end
+API -> Payments: createPayment(userId, key, body, mockOutcome)
+Payments -> Payments: Trim key; validate các trường bắt buộc
+break Thiếu hoặc rỗng Idempotency-Key
+    Payments --> API: 400 Bad Request
+    API --> FE: 400; không tạo Payment
+end
+Payments -> DB: Tìm key và Order liên kết
+DB --> Payments: Payment cũ hoặc chưa có key
+
+alt Key cũ, cùng body và đúng chủ sở hữu
+    Payments --> API: PaymentResponse đã lưu; không gọi Gateway/cộng điểm lại
+else Key cũ nhưng body khác
+    Payments --> API: 409 Conflict
+else Key mới, Order thuộc khách và có thể thanh toán
+    note over Payments, DB
+        Chỉ cho Order PENDING / PAYMENT_FAILED.
+        Sai chủ hoặc không có Order: 404; sai trạng thái: 409.
+    end note
+    opt Retry từ PAYMENT_FAILED
+        Payments -> DB: Qua OrderService.transition(tx): Order -> PENDING
+        note over Payments, DB: Retry không trừ kho lần nữa
+    end
+    Payments -> DB: Trong transaction: tìm VNPay PENDING còn hạn;\nnếu cần, tạo Payment PENDING
+    note over Payments, DB
+        VNPay PENDING có URL, tuổi < 15 phút: dùng lại Payment/URL.
+        Payment PENDING hết hạn: đánh dấu FAILED trước khi tạo mới.
+    end note
+    alt Dùng lại VNPay PENDING còn hạn
+        Payments --> API: PaymentResponse đã có paymentUrl
+    else Tạo Payment mới, gateway = MOCK
+        Payments -> Payments: MockGatewayService.processPayment(mockOutcome)
+        alt Mock SUCCESS
+            Payments -> DB: Qua OrderService: Order PAID;\nqua LoyaltyService: award(tx, order);\nPayment SUCCESS (cùng transaction)
+        else Mock FAILED
+            Payments -> DB: Payment FAILED;\nqua OrderService: Order PAYMENT_FAILED
+        end
+        Payments --> API: PaymentResponse (SUCCESS / FAILED)
+    else Tạo Payment mới, gateway = VNPAY
+        Payments -> Gateway: createPaymentUrl(paymentId, amount, ...)\nHMAC-SHA512; hạn URL 15 phút
+        Gateway --> Payments: paymentUrl
+        Payments -> DB: Lưu transactionRef = paymentId và paymentUrl
+        Payments --> API: PaymentResponse (id, PENDING, paymentUrl)
+    end
+end
+API --> FE: Response của POST đã kết thúc\n(data: PaymentResponse hoặc lỗi)
+
+alt VNPAY có paymentUrl
+    note over Customer, FE
+        Giữ giỏ khi redirect sang VNPay.
+        Chỉ clearCart() khi Backend trả Payment SUCCESS.
+    end note
+    FE -> Customer: Redirect browser tới paymentUrl
+    Customer -> VNPay: Thanh toán hoặc hủy
+else Mock SUCCESS
+    FE -> FE: clearCart()
+    FE --> Customer: Xác nhận đơn; chuyển /orders/:orderId
+else FAILED
+    FE --> Customer: Thông báo lỗi, cho phép thử lại
+end
+
+== 3. Return URL và IPN độc lập ==
+opt Giao dịch VNPay
+    par IPN server-to-server (có thể trước/sau Return URL)
+        VNPay -> API: GET /api/v1/payments/vnpay/ipn?query
+        ref over API, DB
+            handleVnpayIpn(query)
+            Xem phần 4: xác minh, cập nhật và chống xử lý lặp
+        end ref
+        API --> VNPay: HTTP 200; data = {RspCode, Message}
+    else Browser về Frontend, fallback và polling
+        VNPay --> FE: Redirect /payment/vnpay-return?vnp_TxnRef=...
+        note over FE, API
+            vnp_TxnRef = paymentId, không phải orderId.
+            Return URL không tự quyết định trạng thái Payment.
+        end note
+        loop Lần đầu và tối đa 10 lần hỏi lại mỗi 2,5s khi PENDING
+            opt Query Return URL có vnp_SecureHash
+                FE -> API: GET /api/v1/payments/vnpay/ipn?query\nFallback: gửi nguyên query có chữ ký
+                ref over API, DB
+                    Cùng handleVnpayIpn(query) ở phần 4
+                    Backend vẫn xác minh chữ ký và giao dịch
+                end ref
+                API --> FE: data = {RspCode, Message}
+            end
+            FE -> API: GET /api/v1/payments/:paymentId\nAuthorization: Bearer JWT
+            API -> Payments: getPaymentById(paymentId, userId)
+            Payments -> DB: Tìm Payment có Order thuộc userId
+            DB --> Payments: Payment (hoặc không tìm thấy)
+            Payments --> API: PaymentResponse (hoặc 404)
+            API --> FE: data.status = PENDING / SUCCESS / FAILED
+            alt SUCCESS
+                FE -> FE: clearCart(); dừng polling
+                FE --> Customer: Hiển thị kết quả thanh toán; link chi tiết Order
+            else FAILED
+                FE --> Customer: Hiển thị lỗi/hủy; link thử lại; dừng polling
+                note over Customer, FE: Giữ nguyên giỏ để thử lại
+            else PENDING
+                FE --> Customer: Đang chờ xác nhận; không tự gán SUCCESS
+            end
+        end
+        note over Customer, FE
+            Sau giới hạn polling vẫn PENDING: giữ màn hình chờ,
+            cho phép kiểm tra lại; không kết luận giao dịch thất bại.
+        end note
+    end
+end
+
+opt Khách thử lại sau Payment FAILED
+    Customer -> FE: Thử thanh toán lại cho cùng orderId
+    FE -> FE: Sinh Idempotency-Key mới
+    ref over FE, DB
+        Gọi lại POST /payments như phần 2.
+        Order PAYMENT_FAILED -> PENDING trong transaction;
+        không tạo lại Order, không trừ kho lần nữa.
+    end ref
+end
+
+== 4. Chi tiết ref: handleVnpayIpn(query), dùng chung IPN và fallback ==
+API -> Payments: handleVnpayIpn(query)
+Payments -> Gateway: verifyIpnSignature(query)
+Gateway --> Payments: Chữ ký HMAC-SHA512 hợp lệ / không hợp lệ
+alt Chữ ký sai
+    Payments --> API: {RspCode: '97', Message: 'Invalid signature'}
+else Chữ ký hợp lệ
+    Payments -> Payments: Kiểm tra kiểu dữ liệu và vnp_Amount nguyên an toàn
+    alt Dữ liệu sai định dạng
+        Payments --> API: RspCode '99'; amount không hợp lệ: '04'
+    else Dữ liệu hợp lệ
+        Payments -> DB: Transaction: tìm Payment theo transactionRef\nvà gateway VNPAY; đối chiếu amount * 100
+        DB --> Payments: Payment, Order và số tiền
+        alt Không có Payment / lệch số tiền
+            Payments --> API: RspCode '01' / '04'; không cập nhật trạng thái
+        else Payment không còn PENDING
+            Payments --> API: RspCode '02'; không đổi Order/cộng điểm lần hai
+        else Payment PENDING
+            Payments -> Payments: isSuccess = vnp_ResponseCode == '00'\nAND vnp_TransactionStatus == '00'
+            Payments -> DB: updateMany WHERE Payment.status = PENDING\nPayment -> SUCCESS nếu isSuccess, ngược lại FAILED
+            DB --> Payments: paymentUpdate.count
+            alt count = 0 (IPN khác đã cập nhật trước)
+                Payments --> API: RspCode '02'; không xử lý Order/loyalty
+            else count = 1
+                alt Order đang PENDING và isSuccess
+                    Payments -> DB: Qua OrderService.transition(tx): Order PAID\nQua LoyaltyService.award(tx, order): cộng điểm 1 lần
+                else Order đang PENDING và giao dịch lỗi/hủy
+                    Payments -> DB: Qua OrderService.transition(tx): PAYMENT_FAILED\nKhông cộng loyalty
+                else Order không còn PENDING (ví dụ CANCELLED)
+                    note over Payments, DB
+                        Giữ Order, không cộng loyalty.
+                        Kết quả thành công đến muộn đã lưu failureReason
+                        cần hoàn tiền thủ công cùng update Payment ở trên.
+                    end note
+                end
+                Payments --> API: {RspCode: '00', Message: 'Confirm Success'}
+            end
+        end
+    end
+end
+note over API, Payments
+    RspCode '00' xác nhận đã xử lý thông báo, không đồng nghĩa Payment SUCCESS.
+    TransformInterceptor bọc kết quả handler trong data.
+    Chữ ký hợp lệ vẫn có thể thông báo giao dịch thất bại/hủy.
+end note
+@enduml
