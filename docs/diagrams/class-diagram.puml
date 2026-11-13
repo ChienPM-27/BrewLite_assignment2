@@ -386,10 +386,9 @@ PaymentsService --> OrderService : transition(PENDING -> PAID/FAILED)
 PaymentsService --> LoyaltyService : awards points
 PaymentsService --> MockGatewayService : mock gateway
 PaymentsService --> VnpayGatewayService : VNPay gateway
-PaymentsService --> IngredientStockHelper : restores on fail
 PaymentsService --> PrismaService : reads/writes payments
 CancelOrderService --> OrderService : transition(CANCELLED)
-CancelOrderService --> IngredientStockHelper : restores ingredients
+CancelOrderService --> IngredientStockHelper : restores snapshot once on CANCELLED
 AdminOrdersService --> OrderService : transition(PAID -> PREPARING -> READY -> COMPLETED)
 
 AuthService ..> User : manages

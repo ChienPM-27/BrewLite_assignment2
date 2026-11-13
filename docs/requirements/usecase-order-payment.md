@@ -43,11 +43,11 @@
 11. **Khách**: Chọn phương thức (Ví điện tử (`E_WALLET`) / Thẻ ngân hàng (`BANK_CARD`)) và xác nhận (→ **Alt-2**). UI sinh `Idempotency-Key` (UUID) và gửi `POST /api/v1/payments`. *(FR-17, FR-18)*
 12. **API**: Tạo bản ghi thanh toán, chuyển khách sang gateway theo cấu hình (`MOCK` mặc định trên giao diện hiện tại; có hỗ trợ `VNPAY` Sandbox). *(FR-17)*
 13. **Khách**: Hoàn tất xác thực trên cổng (quét mã / nhập OTP). Thất bại hoặc hủy → **Exc-5, Exc-6**. *(FR-17, FR-19)*
-14. **Cổng → Browser (Return URL)**: Sau khi khách hoàn tất hoặc thoát giao dịch, cổng chuyển hướng trình duyệt về Frontend qua Return URL. Frontend tiếp nhận điều hướng và hiển thị trang kết quả hoặc trạng thái đang xử lý. Return URL chỉ phục vụ điều hướng trình duyệt, không phải luồng Backend xác thực và cập nhật thanh toán. (FR-17, FR-20)
+14. **Cổng → Browser (Return URL)**: Cổng chuyển hướng trình duyệt về Frontend. UI có thể gửi nguyên query có chữ ký tới Backend IPN handler như fallback, sau đó đọc `GET /api/v1/payments/:paymentId` kèm JWT để hiển thị. Browser không tự quyết định trạng thái từ query; Backend vẫn phải kiểm tra HMAC, số tiền, tham chiếu và mã kết quả theo cùng contract IPN. (FR-17, FR-20)
 
 15. **Cổng → Backend (IPN)**: Cổng gửi thông báo server-to-server đến Backend qua IPN. Backend kiểm tra chữ ký, số tiền, thông tin giao dịch và tính idempotent. Chữ ký hoặc dữ liệu không hợp lệ → **Exc-7**; IPN lặp → **Exc-8**; IPN thành công hợp lệ đến sau khi đơn đã `CANCELLED` → **Exc-10**. (FR-17..19)
 
-**Lưu ý:** Return URL và IPN là hai luồng độc lập; không giả định Return URL luôn đến trước IPN. Chỉ IPN hợp lệ mới là căn cứ để Backend xác nhận kết quả thanh toán.
+**Lưu ý:** Return URL và IPN là hai luồng độc lập, có thể tới theo bất kỳ thứ tự nào. Kết quả chỉ được xác nhận sau khi Backend xử lý payload hợp lệ qua IPN handler, kể cả payload do UI chuyển tiếp như fallback. Chưa có xác nhận thì giữ Payment `PENDING` và giữ giỏ.
 
 16. **API**: Khi IPN hợp lệ xác nhận thanh toán thành công và đơn đang `PENDING`, cập nhật Payment thành `SUCCESS`, thực hiện `OrderService.transition(PENDING → PAID)`, đặt `paid_at` và ghi lịch sử trạng thái. Nếu đơn đã `CANCELLED`, xử lý riêng theo **Exc-10**, không chuyển trạng thái đơn. (FR-16..19)
 
@@ -113,20 +113,20 @@
 
 Mỗi kịch bản dưới đây có đủ đầu vào, điều kiện và kết quả mong đợi để viết trực tiếp một test. Test ID của kịch bản luồng chính là test end-to-end (Playwright, SP2-08); các kịch bản còn lại dùng Test ID của AC trong [fr-order.md](fr-order.md).
 
-- `AC-UC-01`: **Luồng chính** — Khách đăng nhập, giỏ 120.000đ + `WELCOME10`, kho đủ, thanh toán OK ➔ Đơn `PAID`; trả 108.000đ; khách +108 điểm; kho trừ đúng; lịch sử `NULL→PENDING→PAID` (AC-13.1, AC-15.1, AC-15.2) ➔ Test ID: `TC-UC-01` (E2E); thành phần: `TC-ORDER-01`, `04`, `26`
+- `AC-UC-01`: **Luồng chính** — Khách đăng nhập, giỏ 120.000đ + `WELCOME10`, kho đủ, thanh toán OK ➔ Đơn `PAID`; trả 108.000đ; khách +108 điểm; kho trừ đúng; lịch sử `NULL→PENDING→PAID` (AC-13.1, AC-15.1, AC-15.2) ➔ Test ID: `TC-UC-01` (E2E); thành phần: `TC-ORDER-01`, `TC-ORDER-04`, `TC-ORDER-26`
 - `AC-UC-02`: **Exc-1** — Không gửi token ➔ `401`; không có đơn (AC-13.6) ➔ Test ID: `TC-ORDER-11`
-- `AC-UC-03`: **Exc-2** — `items = []` / `quantity = 0` hoặc `100` / `size = "XL"` / 4 topping ➔ `400`; không có đơn (AC-13.3, AC-13.4) ➔ Test ID: `TC-ORDER-08`, `09`
+- `AC-UC-03`: **Exc-2** — `items = []` / `quantity = 0` hoặc `100` / `size = "XL"` / 4 topping ➔ `400`; không có đơn (AC-13.3, AC-13.4, AC-13.10, AC-13.11) ➔ Test ID: `TC-ORDER-08`, `TC-ORDER-09`, `TC-ORDER-15`, `TC-ORDER-16`
 - `AC-UC-04`: **Exc-3** — Nguyên liệu X tồn 400, đặt 3 ly A (cần 600 X) ➔ `400`; X vẫn 400; không có đơn (AC-14.1) ➔ Test ID: `TC-ORDER-02`
-- `AC-UC-05`: **Exc-3 (nhiều nguyên liệu / món)** — Giỏ cần X (đủ) và Y (thiếu); hoặc X tồn 500, giỏ 2A + 1B cần 550 X ➔ `400`; không nguyên liệu nào bị trừ (AC-14.1, AC-14.4) ➔ Test ID: `TC-ORDER-02`, `21`
+- `AC-UC-05`: **Exc-3 (nhiều nguyên liệu / món)** — Giỏ cần X (đủ) và Y (thiếu); hoặc X tồn 500, giỏ 2A + 1B cần 550 X ➔ `400`; không nguyên liệu nào bị trừ (AC-14.1, AC-14.4) ➔ Test ID: `TC-ORDER-02`, `TC-ORDER-21`
 - `AC-UC-06`: **Exc-3 (đồng thời)** — X đủ đúng 1 ly A, 2 request đồng thời ➔ 1 `201`, 1 `400`; X cuối 0 (AC-14.5) ➔ Test ID: `TC-ORDER-22`
 - `AC-UC-07`: **Exc-4** — `WELCOME10` với đơn 39.000đ ➔ `400`; không có đơn (AC-15.4) ➔ Test ID: `TC-ORDER-28`
-- `AC-UC-08`: **Exc-5 / Exc-6** — Thanh toán thất bại hoặc hủy ➔ Đơn `PAYMENT_FAILED`; kho vẫn giữ; không cộng điểm (AC-16.7, AC-15.11) ➔ Test ID: `TC-ORDER-42`, `35`
+- `AC-UC-08`: **Exc-5 / Exc-6** — Mock FAILED hoặc IPN lỗi/hủy hợp lệ ➔ Đơn `PAYMENT_FAILED`; kho và giỏ vẫn giữ; không cộng điểm (AC-19.1..19.3, AC-15.11) ➔ Test ID: `TC-PAY-05`, `TC-PAY-17`, `TC-CART-04`, `TC-ORDER-35`
 - `AC-UC-09`: **Alt-3** — Đơn `PAYMENT_FAILED`, thử lại ➔ Đơn về `PENDING`; kho không đổi (AC-16.7) ➔ Test ID: `TC-ORDER-42`
-- `AC-UC-10`: **Alt-4** — Hủy đơn `PENDING` ➔ Đơn `CANCELLED`; nguyên liệu hoàn đủ; hủy lần 2 → `409` (AC-14.6, AC-14.7, AC-16.8) ➔ Test ID: `TC-ORDER-23`, `24`, `43`
-- `AC-UC-11`: **Alt-4 (sai trạng thái / sai chủ)** — Hủy đơn `PAID`; hoặc hủy đơn của người khác ➔ `409`; hoặc `404` (AC-16.9, AC-16.10) ➔ Test ID: `TC-ORDER-44`, `45`
-- `AC-UC-12`: **Exc-8** — Gửi 2 lần cùng `Idempotency-Key`, hoặc cổng gọi lại IPN thành công ➔ Chỉ 1 payment, 1 lần `PAID`, 1 lần cộng điểm; lời gọi thứ hai không đổi dữ liệu (lớp payment trả kết quả cũ; nếu lọt xuống `transition()` thì `PAID → PAID` bị chặn `409`) (AC-15.10) ➔ Test ID: `TC-ORDER-34 (+ AC của fr-payment.md)`
+- `AC-UC-10`: **Alt-4** — Hủy đơn `PENDING` ➔ Đơn `CANCELLED`; nguyên liệu hoàn đủ; hủy lần 2 → `409` (AC-14.6, AC-14.7, AC-16.8) ➔ Test ID: `TC-ORDER-23`, `TC-ORDER-24`, `TC-ORDER-43`
+- `AC-UC-11`: **Alt-4 (sai trạng thái / sai chủ)** — Hủy đơn `PAID`; hoặc hủy đơn của người khác ➔ `409`; hoặc `404` (AC-16.9, AC-16.10) ➔ Test ID: `TC-ORDER-44`, `TC-ORDER-45`
+- `AC-UC-12`: **Exc-8** — Gửi 2 lần cùng `Idempotency-Key`, hoặc cổng gọi lại IPN thành công ➔ Chỉ 1 payment, 1 lần `PAID`, 1 lần cộng điểm; lời gọi thứ hai không đổi dữ liệu (lớp payment trả kết quả cũ; nếu lọt xuống `transition()` thì `PAID → PAID` bị chặn `409`) (AC-15.10, AC-18.2, AC-18.4) ➔ Test ID: `TC-ORDER-34`, `TC-PAY-03`, `TC-PAY-08`
 - `AC-UC-13`: **Exc-9** — Có yêu cầu chuyển trạng thái không hợp lệ, ví dụ `PENDING → COMPLETED` hoặc `PAID → READY` ➔ `409 ConflictException`; trạng thái đơn và lịch sử không đổi (AC-16.3, AC-16.6) ➔ Test ID: `TC-ORDER-06`, `TC-ORDER-41`
-- `AC-UC-14`: **Exc-10** — IPN thành công hợp lệ đến sau khi đơn đã `CANCELLED` ➔ Payment `SUCCESS`; Order giữ `CANCELLED`; đánh dấu cần hoàn tiền thủ công; không cộng điểm; trả `RspCode: '00'`. ➔ Test ID: Cần phối hợp SP1-07 bổ sung/xác nhận.
+- `AC-UC-14`: **Exc-10** — IPN thành công hợp lệ đến sau khi đơn đã `CANCELLED` ➔ Payment `SUCCESS`; Order giữ `CANCELLED`; đánh dấu cần hoàn tiền thủ công; không cộng điểm; trả `RspCode: '00'`. ➔ Test ID: `TC-PAY-18` (Integration; owner Kiệt kiểm chứng ở Sprint 2).
 
 ---
 
@@ -142,7 +142,7 @@ Mỗi kịch bản dưới đây có đủ đầu vào, điều kiện và kết
 1. Frontend dùng route `/checkout/payment?orderId=<orderId>` sau khi tạo đơn, không dùng `/payment/[orderId]`.
 2. Backend hỗ trợ gateway `MOCK` và `VNPAY`; màn hình hiện đặt `MOCK` làm lựa chọn khởi đầu. Payment/sequence vẫn thuộc SP1-07.
 3. `AdminOrdersController` hiện chỉ cho `ADMIN`; route advance đang có là `PATCH /api/v1/admin/orders/:id/advance`. Chưa có API `BARISTA` hoặc API hủy đơn `PAID`, dù state machine vẫn khai báo cặp `PAID → CANCELLED`.
-4. Với VNPay, Return URL chỉ chuyển hướng Browser về Frontend; IPN mới là thông báo server-to-server để Backend xác minh và cập nhật kết quả thanh toán. Qua đối chiếu hiện trạng, nhánh frontend VNPay đang gọi `clearCart()` trước khi redirect tới cổng, tức là trước khi Backend nhận và xử lý IPN. Điều này lệch hậu điều kiện “chỉ xóa giỏ khi Backend xác nhận thanh toán thành công”; cần phối hợp Kiệt/Hào xử lý trong phạm vi frontend/payment/cart của họ.
+4. PR #5 đã sửa lỗi xóa giỏ trước redirect VNPay: UI hiện giữ giỏ khi sang cổng và chỉ gọi `clearCart()` sau khi Backend trả Payment `SUCCESS`. Return URL có fallback gửi signed query tới IPN handler rồi đọc Payment theo JWT; xem FR-20 và `sequence-checkout.puml`. Kiểm chứng Sandbox đầy đủ thuộc Sprint 2.
 
 ---
 
@@ -154,7 +154,7 @@ Mỗi kịch bản dưới đây có đủ đầu vào, điều kiện và kết
 4. Đơn `PENDING` / `PAYMENT_FAILED` giữ nguyên liệu đã trừ cho tới khi `PAID` hoặc `CANCELLED`.
 5. Điểm thưởng: 1 điểm cho mỗi 1.000đ thực trả, cộng một lần khi đơn `PAID`.
 6. Repo hỗ trợ `MOCK` và `VNPAY`; giao diện hiện đặt `MOCK` làm lựa chọn mặc định. Khi dùng VNPay Sandbox:
-   - Return URL chỉ chuyển hướng Browser về Frontend để hiển thị kết quả hoặc trạng thái đang xử lý; không dùng Return URL làm căn cứ cập nhật Payment/Order.
+   - Return URL điều hướng Browser về Frontend. UI chuyển tiếp signed query như fallback; chỉ Backend IPN handler mới xác minh và cập nhật Payment/Order, sau đó UI đọc trạng thái qua API có JWT.
    - IPN gửi server-to-server đến Backend; Backend kiểm tra chữ ký, số tiền và thông tin giao dịch trước khi xử lý cập nhật thanh toán.
    - IPN và yêu cầu thanh toán phải được xử lý idempotent. IPN thành công hợp lệ đến sau khi Order đã `CANCELLED` được xử lý theo Exc-10: Payment `SUCCESS`, đánh dấu cần hoàn tiền thủ công, giữ Order `CANCELLED`, không cộng điểm và trả `RspCode: '00'`.
    Đây là tích hợp VNPay Sandbox, không phải thanh toán tiền thật.

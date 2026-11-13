@@ -11,7 +11,6 @@ import {
   ChevronRight,
   Copy,
   CreditCard,
-  ExternalLink,
   Info,
   QrCode,
   RefreshCw,
@@ -24,10 +23,8 @@ import { useCartStore } from '@/store/useCartStore';
 import { cancelOrder, getOrderById, OrderDetail } from '@/services/order.service';
 import {
   createPayment,
-  getTunnelInfo,
   PaymentGateway,
   PaymentMethod,
-  TunnelInfo,
 } from '@/services/payment.service';
 import { formatVND } from '@/lib/format-currency';
 import { generateIdempotencyKey } from '@/lib/idempotency';
@@ -54,19 +51,10 @@ function PaymentContent() {
   const [isCancelling, setIsCancelling] = useState(false);
   const [isGatewayModalOpen, setIsGatewayModalOpen] = useState(false);
 
-  const [tunnelInfo, setTunnelInfo] = useState<TunnelInfo | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // Giữ idempotency key trong useRef cho cả lượt thanh toán
   const idempotencyKeyRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (gateway === 'VNPAY' && !tunnelInfo) {
-      getTunnelInfo().then((info) => {
-        if (info) setTunnelInfo(info);
-      });
-    }
-  }, [gateway, tunnelInfo]);
 
   const copyToClipboard = (text: string, fieldName: string) => {
     navigator.clipboard.writeText(text);
@@ -386,7 +374,7 @@ function PaymentContent() {
             </button>
           </div>
 
-          {/* Hướng dẫn cấu hình VNPay Sandbox tự động */}
+          {/* Thẻ thử nghiệm VNPay Sandbox */}
           {gateway === 'VNPAY' && (
             <div className="mt-5 rounded-2xl border border-primary/20 bg-primary-light/40 p-4">
               <div className="flex items-start gap-2.5">
@@ -394,106 +382,46 @@ function PaymentContent() {
                 <div className="flex-1 space-y-3 text-xs">
                   <div>
                     <h4 className="font-bold text-navy">
-                      Hướng dẫn cấu hình VNPay Sandbox (Dành cho Tester)
+                      Thanh toán thử nghiệm VNPay Sandbox
                     </h4>
                     <p className="text-[11px] text-content-secondary mt-0.5">
-                      Gắn đường link IPN dưới đây vào trang quản trị VNPay Sandbox để tự động kích hoạt trạng thái đơn hàng:
+                      Dùng thẻ test bên dưới để thử thanh toán. Giao dịch Sandbox không thu tiền thật.
                     </p>
                   </div>
 
-                  {/* IPN URL row */}
+                  {/* Test card info */}
                   <div className="rounded-xl border border-border-warm bg-white p-2.5">
-                    <div className="flex items-center justify-between text-[11px]">
+                    <div className="flex items-center justify-between">
                       <span className="font-semibold text-content-secondary">
-                        Đường dẫn IPN URL (Server-to-Server):
+                        Thẻ ATM test NCB:
                       </span>
-                      {tunnelInfo?.ipnUrl && (
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard(tunnelInfo.ipnUrl!, 'ipn')}
-                          className="inline-flex items-center gap-1 font-bold text-primary hover:underline"
-                        >
-                          {copiedField === 'ipn' ? (
-                            <>
-                              <Check className="h-3 w-3 text-emerald-600" />
-                              <span className="text-emerald-600">Đã sao chép</span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="h-3 w-3" />
-                              <span>Sao chép IPN URL</span>
-                            </>
-                          )}
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard('9704198526191432198', 'card')}
+                        className="inline-flex items-center gap-1 font-bold text-primary hover:underline"
+                      >
+                        {copiedField === 'card' ? (
+                          <>
+                            <Check className="h-3 w-3 text-emerald-600" />
+                            <span className="text-emerald-600">Đã chép</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3 w-3" />
+                            <span>Sao chép số thẻ</span>
+                          </>
+                        )}
+                      </button>
                     </div>
-                    <code className="mt-1 block truncate rounded bg-surface-sand/60 px-2 py-1 font-mono text-xs text-navy">
-                      {tunnelInfo?.ipnUrl || 'Đang kết nối cloudflare tunnel...'}
-                    </code>
-                  </div>
-
-                  {/* Merchant Account info */}
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 text-[11px]">
-                    <div className="rounded-xl border border-border-warm bg-white p-2.5">
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-content-secondary">
-                          Tài khoản Merchant Admin:
-                        </span>
-                        <a
-                          href="https://sandbox.vnpayment.vn/merchantv2/"
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 font-bold text-primary hover:underline"
-                        >
-                          <span>Mở trang</span>
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                      </div>
-                      <p className="mt-1 font-medium text-navy">
-                        Email: <span className="font-mono font-bold">pminhchien2006@gmail.com</span>
-                      </p>
-                      <p className="font-medium text-navy">
-                        Mật khẩu: <span className="font-mono font-bold">chienCHIEN1230</span>
-                      </p>
-                      <p className="font-medium text-navy">
-                        Mã TmnCode: <span className="font-mono font-bold">{tunnelInfo?.sandbox.tmnCode || 'DEV_TMN_CODE'}</span>
-                      </p>
-                    </div>
-
-                    {/* Test card info */}
-                    <div className="rounded-xl border border-border-warm bg-white p-2.5">
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-content-secondary">
-                          Thẻ ATM test NCB:
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard('9704198526191432198', 'card')}
-                          className="inline-flex items-center gap-1 font-bold text-primary hover:underline"
-                        >
-                          {copiedField === 'card' ? (
-                            <>
-                              <Check className="h-3 w-3 text-emerald-600" />
-                              <span className="text-emerald-600">Đã chép</span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="h-3 w-3" />
-                              <span>Sao chép số thẻ</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                      <p className="mt-1 font-medium text-navy">
-                        Số thẻ: <span className="font-mono font-bold">9704198526191432198</span>
-                      </p>
-                      <p className="font-medium text-navy">
-                        Tên: <span className="font-mono font-bold">NGUYEN VAN A</span>
-                      </p>
-                      <p className="font-medium text-navy">
-                        Ngày: <span className="font-mono font-bold">07/15</span> | OTP: <span className="font-mono font-bold">123456</span>
-                      </p>
-                    </div>
+                    <p className="mt-1 font-medium text-navy">
+                      Số thẻ: <span className="font-mono font-bold">9704198526191432198</span>
+                    </p>
+                    <p className="font-medium text-navy">
+                      Tên: <span className="font-mono font-bold">NGUYEN VAN A</span>
+                    </p>
+                    <p className="font-medium text-navy">
+                      Ngày: <span className="font-mono font-bold">07/15</span> | OTP: <span className="font-mono font-bold">123456</span>
+                    </p>
                   </div>
                 </div>
               </div>
