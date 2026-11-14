@@ -1,0 +1,18 @@
+{
+  "name": "brewlite-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "BrewLite E2E Playwright (SP2-08, ADR-009 mục 3.4 và 3.6)",
+  "scripts": {
+    "e2e": "playwright test",
+    "e2e:local": "node scripts/e2e-local.mjs",
+    "e2e:report": "playwright show-report",
+    "e2e:install-browsers": "playwright install chromium",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0",
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3"
+  }
+}

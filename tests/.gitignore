@@ -1,0 +1,6 @@
+node_modules/
+test-results/
+playwright-report/
+blob-report/
+# Manifest fixture và danh sách user/đơn của từng lượt chạy (sinh ra khi chạy, không commit)
+.e2e-run/
