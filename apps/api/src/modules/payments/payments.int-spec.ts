@@ -16,6 +16,13 @@ import {
   TestDataRegistry,
 } from '../../../test/test-helper';
 
+// Đảm bảo các biến cấu hình thanh toán mẫu luôn sẵn sàng cho integration test
+process.env.VNPAY_TMN_CODE = process.env.VNPAY_TMN_CODE || 'DEMOTMN1';
+process.env.VNPAY_HASH_SECRET =
+  process.env.VNPAY_HASH_SECRET || 'TEST_SECRET_HASH_KEY_AT_LEAST_32_CHARS_LONG';
+process.env.VNPAY_RETURN_URL =
+  process.env.VNPAY_RETURN_URL || 'http://localhost:3000/checkout/payment';
+
 describe('Payments Module Integration Tests (SP2-07 / Task 5.2)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -145,7 +152,7 @@ describe('Payments Module Integration Tests (SP2-07 / Task 5.2)', () => {
 
       expect(failRes.body.success).toBe(true);
       expect(failRes.body.data.status).toBe(PaymentStatus.FAILED);
-      expect(failRes.body.data.failureReason).toContain('Mô phỏng thanh toán thất bại');
+      expect(failRes.body.data.failureReason).toBe('Mock payment failed');
 
       registry.paymentIds?.push(failRes.body.data.id);
 
@@ -268,7 +275,8 @@ describe('Payments Module Integration Tests (SP2-07 / Task 5.2)', () => {
           vnp_Amount: '5000000',
           vnp_ResponseCode: '00',
           vnp_SecureHash: 'invalid_tampered_hash_123',
-        });
+        })
+        .expect(200);
 
       // API trả về JSON { RspCode: '97', Message: 'Invalid signature' }
       expect(res.body.data).toEqual({
@@ -277,10 +285,11 @@ describe('Payments Module Integration Tests (SP2-07 / Task 5.2)', () => {
       });
     });
 
-    it('từ chối mã RspCode 99 khi callback VNPay thiếu dữ liệu bắt buộc', async () => {
+    it('từ chối mã RspCode 97 khi callback VNPay thiếu chữ ký hoặc dữ liệu bắt buộc', async () => {
       const res = await request(app.getHttpServer())
         .get('/api/v1/payments/vnpay/ipn')
-        .query({});
+        .query({})
+        .expect(200);
 
       expect(res.body.data.RspCode).toBe('97');
     });
