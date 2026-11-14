@@ -49,7 +49,7 @@ export default function ProductCard({ product, onQuickAdd }: ProductCardProps) {
 
   return (
     <article
-      className={`group relative flex flex-col justify-between rounded-3xl border border-border-warm/70 bg-surface-milk p-3.5 shadow-card transition-all duration-300 hover:-translate-y-1 hover:shadow-card-hover ${
+      className={`group relative flex min-w-0 flex-col justify-between rounded-3xl border border-border-warm/70 bg-surface-milk p-2.5 shadow-card transition-all duration-300 hover:-translate-y-1 hover:shadow-card-hover sm:p-3.5 ${
         soldOut ? 'opacity-70 grayscale-[20%]' : ''
       }`}
     >
@@ -62,24 +62,26 @@ export default function ProductCard({ product, onQuickAdd }: ProductCardProps) {
             className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
           />
 
-          {/* Huy hiệu danh mục (Góc trên trái) */}
-          {product.categoryName && (
-            <span className="absolute left-2.5 top-2.5 rounded-full border border-border-warm/50 bg-surface-milk/95 px-2.5 py-0.5 text-[11px] font-bold text-navy shadow-card backdrop-blur-md">
-              {product.categoryName}
-            </span>
-          )}
+          <div className="absolute left-2 top-2 flex max-w-[calc(100%-1rem)] flex-col items-start gap-1">
+            {/* Huy hiệu danh mục */}
+            {product.categoryName && (
+              <span className="max-w-full truncate rounded-full border border-border-warm/50 bg-surface-milk/95 px-2.5 py-0.5 text-[11px] font-bold text-navy shadow-card backdrop-blur-md">
+                {product.categoryName}
+              </span>
+            )}
 
-          {/* Huy hiệu khuyến mãi (Góc trên phải) */}
-          {isBestSeller && !soldOut && (
-            <span className="absolute right-2.5 top-2.5 flex items-center gap-1 rounded-full bg-[#006337] px-2.5 py-0.5 text-[10px] font-bold text-white shadow-card">
-              Best seller
-            </span>
-          )}
-          {isFavorite && !soldOut && (
-            <span className="absolute right-2.5 top-2.5 flex items-center gap-1 rounded-full bg-[#C68B59] px-2.5 py-0.5 text-[10px] font-bold text-white shadow-card">
-              Yêu thích
-            </span>
-          )}
+            {/* Xếp huy hiệu dọc để không chồng nhau trên ảnh mobile. */}
+            {isBestSeller && !soldOut && (
+              <span className="max-w-full truncate rounded-full bg-[#006337] px-2.5 py-0.5 text-[10px] font-bold text-white shadow-card">
+                Best seller
+              </span>
+            )}
+            {isFavorite && !soldOut && (
+              <span className="max-w-full truncate rounded-full bg-[#C68B59] px-2.5 py-0.5 text-[10px] font-bold text-white shadow-card">
+                Yêu thích
+              </span>
+            )}
+          </div>
 
           {/* Huy hiệu đánh giá (Góc dưới trái) */}
           {!soldOut && (
@@ -99,16 +101,16 @@ export default function ProductCard({ product, onQuickAdd }: ProductCardProps) {
           )}
         </div>
 
-        <h3 className="line-clamp-1 text-[17px] font-bold text-navy transition-colors group-hover:text-primary">
+        <h3 className="line-clamp-2 min-h-10 text-[15px] font-bold leading-5 text-navy transition-colors group-hover:text-primary sm:text-[17px] sm:leading-6">
           {product.name}
         </h3>
-        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-content-secondary">
+        <p className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-content-secondary">
           {subtitle}
         </p>
       </Link>
 
-      <div className="mt-4 flex items-center justify-between gap-2 pt-2 border-t border-border-subtle/80">
-        <div>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border-subtle/80">
+        <div className="shrink-0 whitespace-nowrap">
           <span className="block text-[11px] font-medium text-content-secondary">Giá từ</span>
           <span
             className={`text-base font-extrabold ${
@@ -127,12 +129,12 @@ export default function ProductCard({ product, onQuickAdd }: ProductCardProps) {
               onQuickAdd(product);
             }}
             aria-label={`Thêm ${product.name} vào giỏ hàng`}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-surface-milk shadow-card transition-all hover:bg-primary-hover active:scale-90"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary text-surface-milk shadow-card transition-all hover:bg-primary-hover active:scale-90"
           >
             <Plus className="h-5 w-5" strokeWidth={2.5} aria-hidden="true" />
           </button>
         ) : (
-          <span className="cursor-not-allowed rounded-full bg-surface-sand px-3.5 py-1.5 text-xs font-semibold text-content-secondary">
+          <span className="shrink-0 whitespace-nowrap cursor-not-allowed rounded-full bg-surface-sand px-2.5 py-1.5 text-xs font-semibold text-content-secondary">
             Tạm hết
           </span>
         )}

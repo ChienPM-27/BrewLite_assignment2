@@ -85,7 +85,7 @@ export default function CartPage() {
 
       {/* Giỏ hàng trống */}
       {items.length === 0 && (
-        <div className="my-12 flex flex-col items-center justify-center rounded-3xl border border-border-warm bg-surface-milk p-12 text-center shadow-card">
+        <div className="my-12 flex flex-col items-center justify-center rounded-3xl border border-border-warm bg-surface-milk p-6 text-center shadow-card sm:p-12">
           <div className="flex h-20 w-20 items-center justify-center rounded-full bg-secondary-container text-primary">
             <ShoppingBag className="h-10 w-10" />
           </div>
@@ -97,7 +97,7 @@ export default function CartPage() {
           </p>
           <Link
             href="/menu"
-            className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-8 py-3 text-sm font-bold text-white shadow-cta transition-all hover:bg-primary-hover active:scale-95"
+            className="mt-6 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-bold text-white shadow-cta transition-all hover:bg-primary-hover active:scale-95 sm:w-auto sm:px-8"
           >
             <Coffee className="h-4 w-4" />
             <span>Khám phá thực đơn ngay</span>
@@ -136,7 +136,7 @@ export default function CartPage() {
                     key={item.id}
                     className="flex flex-col gap-3 rounded-2xl border border-border-warm bg-surface-milk p-4 shadow-card sm:flex-row sm:items-center sm:justify-between"
                   >
-                    <div className="flex items-center gap-3.5">
+                    <div className="flex min-w-0 items-center gap-3.5">
                       <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-surface-sand">
                         <ProductImage
                           src={item.imageUrl}
@@ -144,7 +144,7 @@ export default function CartPage() {
                           className="h-full w-full object-cover"
                         />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <Link
                           href={`/products/${item.productId}`}
                           className="text-base font-bold text-navy hover:text-primary transition-colors"
@@ -161,7 +161,7 @@ export default function CartPage() {
                             </span>
                           )}
                         </div>
-                        <div className="mt-1.5 flex items-center gap-2">
+                        <div className="mt-1.5 flex flex-wrap items-center gap-2">
                           <span className="text-sm font-extrabold text-primary">
                             {formatVND(item.estimatedUnitPrice)}
                           </span>
@@ -177,7 +177,7 @@ export default function CartPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between gap-3 border-t border-border-warm/60 pt-2 sm:border-0 sm:pt-0">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border-warm/60 pt-2 sm:border-0 sm:pt-0">
                       <QuantityStepper
                         quantity={item.quantity}
                         onChange={(newQty) => updateQuantity(item.id, newQty)}

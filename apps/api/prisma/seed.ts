@@ -209,8 +209,7 @@ async function main() {
       categoryId: catTea.id,
       name: 'Trà dâu',
       basePrice: 40000,
-      imageUrl:
-        'https://images.unsplash.com/photo-1558857563-b371033873b8?q=80&w=687&auto=format&fit=crop',
+      imageUrl: '/images/products/strawberry-tea.jpg',
       stock: 50,
     },
   ];

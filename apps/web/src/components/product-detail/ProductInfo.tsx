@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Ban, Coffee, Flame, Heart, Leaf, Search, Sparkles, Star, Timer } from 'lucide-react';
-import ProductImage from '@/components/ui/ProductImage';
+import ProductImage, { resolveProductImage } from '@/components/ui/ProductImage';
 import { formatVND } from '@/lib/format-currency';
 import { ProductDetail } from '@/types/product';
 
@@ -13,13 +13,16 @@ interface ProductInfoProps {
 /** Cột trái: ảnh sản phẩm kèm thư viện ảnh con, huy hiệu và hồ sơ rang vị. */
 export function ProductGallery({ product }: ProductInfoProps) {
   const soldOut = !product.isAvailable;
-  const [selectedImage, setSelectedImage] = useState<string | null>(product.imageUrl);
+  const productImage = resolveProductImage(product.imageUrl, product.name);
+  const [selectedImage, setSelectedImage] = useState<string | null>(productImage);
 
   // Gallery thumbnails: use real or related preview shots
   const thumbnails = [
-    product.imageUrl,
-    'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?q=80&w=400&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1442512595331-e89e73853f31?q=80&w=400&auto=format&fit=crop',
+    productImage,
+    ...(product.categoryName?.includes('Cà phê') ? [
+      'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?q=80&w=400&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1442512595331-e89e73853f31?q=80&w=400&auto=format&fit=crop',
+    ] : []),
   ].filter(Boolean) as string[];
 
   return (
@@ -65,7 +68,7 @@ export function ProductGallery({ product }: ProductInfoProps) {
       </div>
 
       {/* Dải ảnh thu nhỏ & Nguồn gốc xuất xứ */}
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
           {thumbnails.map((img, idx) => {
             const isCurrent = selectedImage === img;
@@ -98,7 +101,7 @@ export function ProductGallery({ product }: ProductInfoProps) {
       </div>
 
       {/* Thẻ Hồ sơ rang vị (Roast Profile) */}
-      <div className="flex items-center justify-between rounded-2xl border border-border-warm bg-[#FAF2E8]/60 p-4 shadow-card">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border-warm bg-[#FAF2E8]/60 p-4 shadow-card">
         <div className="flex items-center gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary-container text-primary">
             <Coffee className="h-5 w-5" aria-hidden="true" />

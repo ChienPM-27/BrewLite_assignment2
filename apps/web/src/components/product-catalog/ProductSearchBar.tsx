@@ -29,14 +29,14 @@ export default function ProductSearchBar({
           placeholder="Tìm món... (hỗ trợ không dấu)"
           aria-label="Tìm món trong thực đơn"
           autoComplete="off"
-          className="w-full bg-transparent py-3 pl-2 pr-12 text-sm text-navy outline-none placeholder:text-[#A89C94] disabled:cursor-not-allowed disabled:opacity-60 [&::-webkit-search-cancel-button]:hidden"
+          className="min-w-0 w-full bg-transparent py-3 pl-2 pr-12 text-base text-navy outline-none placeholder:text-content-secondary disabled:cursor-not-allowed disabled:opacity-60 [&::-webkit-search-cancel-button]:hidden"
         />
         {value && (
           <button
             type="button"
             onClick={() => onChange('')}
             aria-label="Xóa nội dung tìm kiếm"
-            className="absolute right-3 rounded-full p-1 text-content-secondary transition-colors hover:bg-surface-sand hover:text-navy"
+            className="absolute right-1 flex h-11 w-11 items-center justify-center rounded-full text-content-secondary transition-colors hover:bg-surface-sand hover:text-navy"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -52,7 +52,7 @@ export default function ProductSearchBar({
             type="button"
             disabled={disabled}
             onClick={() => onChange(tag)}
-            className={`rounded-full border border-border-warm bg-surface-milk px-3 py-1 font-medium transition-all hover:border-primary hover:text-primary active:scale-95 disabled:pointer-events-none ${
+            className={`min-h-11 rounded-full border border-border-warm bg-surface-milk px-3 py-1 font-medium transition-all hover:border-primary hover:text-primary active:scale-95 disabled:pointer-events-none ${
               value === tag ? 'border-primary bg-primary text-white shadow-card' : ''
             }`}
           >

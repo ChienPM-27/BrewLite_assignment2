@@ -20,7 +20,7 @@ export default function CategoryTabs({
     <div
       role="tablist"
       aria-label="Danh mục đồ uống"
-      className="no-scrollbar flex select-none items-center gap-2 overflow-x-auto py-1"
+      className="no-scrollbar flex min-w-0 max-w-full select-none items-center gap-2 overflow-x-auto py-1"
     >
       {categories.map((category) => {
         const active = category.name === selected;
@@ -32,7 +32,7 @@ export default function CategoryTabs({
             aria-selected={active}
             disabled={disabled}
             onClick={() => onSelect(category.name)}
-            className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-[13px] font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+            className={`flex min-h-11 shrink-0 items-center gap-2 rounded-full px-4 py-2 text-[13px] font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
               active
                 ? 'border border-primary bg-primary text-surface-milk shadow-card-hover'
                 : 'border border-border-warm/60 bg-surface-milk text-content-roast shadow-card hover:text-navy'

@@ -20,7 +20,7 @@ export default function QuantityStepper({
   max = MAX_QUANTITY,
 }: QuantityStepperProps) {
   const buttonClass =
-    'flex h-9 w-9 items-center justify-center rounded-full bg-surface-milk text-navy transition-all hover:bg-border-warm disabled:cursor-not-allowed disabled:opacity-40';
+    'flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-milk text-navy transition-all hover:bg-border-warm disabled:cursor-not-allowed disabled:opacity-40';
 
   return (
     <div className="flex items-center gap-1 rounded-full border border-border-warm bg-primary-light p-1">
@@ -36,7 +36,7 @@ export default function QuantityStepper({
       <output
         aria-live="polite"
         aria-label={`Số lượng: ${quantity}`}
-        className="w-12 select-none text-center text-base font-bold text-navy"
+        className="w-8 shrink-0 select-none text-center text-base font-bold text-navy"
       >
         {quantity}
       </output>

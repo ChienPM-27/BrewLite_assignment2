@@ -72,7 +72,7 @@ function LoginForm() {
 
   return (
     <div className="mx-auto w-full max-w-md px-4 py-12">
-      <div className="rounded-3xl border border-border-warm bg-surface-milk p-8 shadow-card">
+      <div className="rounded-3xl border border-border-warm bg-surface-milk p-5 shadow-card sm:p-8">
         {/* Brand header */}
         <div className="mb-6 text-center">
           <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-white shadow-card">
@@ -119,7 +119,7 @@ function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@example.com"
-                className="w-full rounded-full border border-border-warm bg-surface-sand pl-11 pr-4 py-3 text-sm font-medium text-navy placeholder:text-content-secondary outline-none transition-colors focus:border-primary"
+                className="w-full rounded-full border border-border-warm bg-surface-sand pl-11 pr-4 py-3 text-base font-medium text-navy placeholder:text-content-secondary outline-none transition-colors focus:border-primary"
               />
             </div>
           </div>
@@ -137,7 +137,7 @@ function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full rounded-full border border-border-warm bg-surface-sand pl-11 pr-4 py-3 text-sm font-medium text-navy placeholder:text-content-secondary outline-none transition-colors focus:border-primary"
+                className="w-full rounded-full border border-border-warm bg-surface-sand pl-11 pr-4 py-3 text-base font-medium text-navy placeholder:text-content-secondary outline-none transition-colors focus:border-primary"
               />
             </div>
           </div>

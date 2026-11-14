@@ -133,11 +133,11 @@ function QuickCustomizeModalContent({
       role="dialog"
       aria-modal="true"
       aria-labelledby="customize-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy/60 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-navy/60 backdrop-blur-sm animate-in fade-in duration-200 sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
-        className="relative max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-3xl border border-border-warm bg-surface-milk p-6 shadow-dock"
+        className="relative max-h-[calc(100dvh-1rem)] w-full max-w-xl overflow-y-auto overscroll-contain rounded-t-3xl border border-border-warm bg-surface-milk p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-dock sm:max-h-[90dvh] sm:rounded-3xl sm:p-6"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Nút đóng */}
@@ -145,21 +145,21 @@ function QuickCustomizeModalContent({
           type="button"
           onClick={onClose}
           aria-label="Đóng"
-          className="absolute right-4 top-4 rounded-full p-2 text-content-secondary transition-colors hover:bg-surface-sand hover:text-navy"
+          className="absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-full text-content-secondary transition-colors hover:bg-surface-sand hover:text-navy"
         >
           <X className="h-5 w-5" />
         </button>
 
         {/* Thông tin sản phẩm vắn tắt */}
-        <div className="flex items-center gap-4 border-b border-border-warm pb-4">
-          <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-surface-sand">
+        <div className="flex items-center gap-3 border-b border-border-warm pb-4 pr-8 sm:gap-4">
+          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-surface-sand sm:h-20 sm:w-20">
             <ProductImage
               src={product.imageUrl}
               alt={product.name}
               className="h-full w-full object-cover"
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <span className="rounded-full bg-secondary-container px-2.5 py-0.5 text-[10px] font-bold text-secondary">
               {product.categoryName || 'Đồ uống'}
             </span>
@@ -176,7 +176,7 @@ function QuickCustomizeModalContent({
         <div className="flex flex-col gap-5 py-4">
           {/* Chọn Size */}
           <div>
-            <div className="mb-2 flex items-center justify-between">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-1">
               <span className="text-xs font-bold uppercase tracking-wider text-navy">
                 1. Chọn kích cỡ (Size)
               </span>
@@ -210,7 +210,7 @@ function QuickCustomizeModalContent({
 
           {/* Chọn Topping */}
           <div>
-            <div className="mb-2 flex items-center justify-between">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-1">
               <span className="text-xs font-bold uppercase tracking-wider text-navy">
                 2. Topping thêm (Tối đa {MAX_TOPPINGS})
               </span>
@@ -333,7 +333,7 @@ function QuickCustomizeModalContent({
         </div>
 
         {/* Thanh chân trang xác nhận */}
-        <div className="mt-2 flex items-center justify-between border-t border-border-warm pt-4">
+        <div className="mt-2 flex flex-col gap-3 border-t border-border-warm pt-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <span className="block text-[10px] font-bold uppercase tracking-wider text-content-secondary">
               Đơn giá tạm tính
@@ -346,7 +346,7 @@ function QuickCustomizeModalContent({
           <button
             type="button"
             onClick={handleAdd}
-            className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-bold text-white shadow-cta transition-all hover:bg-primary-hover active:scale-95"
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-bold text-white shadow-cta transition-all hover:bg-primary-hover active:scale-95 sm:w-auto sm:px-6"
           >
             <ShoppingBag className="h-4 w-4" />
             <span>Thêm vào giỏ hàng – {formatVND(totalPrice)}</span>

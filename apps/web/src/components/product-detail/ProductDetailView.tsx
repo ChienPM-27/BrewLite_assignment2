@@ -178,7 +178,7 @@ export default function ProductDetailView({ id }: ProductDetailViewProps) {
             />
 
             {/* Thanh hành động dính đáy */}
-            <div className="sticky bottom-4 z-40 flex items-center gap-4 rounded-2xl border border-border-warm bg-surface-milk/95 p-4 shadow-dock backdrop-blur-xl">
+            <div className="bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 flex flex-col gap-3 rounded-2xl border border-border-warm bg-surface-milk/95 p-3 shadow-dock backdrop-blur-xl sm:flex-row sm:items-center sm:gap-4 sm:p-4 lg:sticky">
               <div className="flex flex-col">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-content-secondary">
                   Tổng tiền tạm tính
@@ -191,7 +191,7 @@ export default function ProductDetailView({ id }: ProductDetailViewProps) {
                 type="button"
                 onClick={handleAddToCart}
                 disabled={!canAddToCart || isAdding || isSoldOut}
-                className="flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-6 py-3.5 text-[15px] font-bold text-surface-milk shadow-cta transition-all hover:bg-primary-hover active:scale-95 disabled:cursor-not-allowed disabled:bg-outline disabled:shadow-none disabled:hover:bg-outline"
+                className="flex min-h-11 w-full flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 py-3.5 text-[15px] font-bold text-surface-milk shadow-cta transition-all hover:bg-primary-hover active:scale-95 disabled:cursor-not-allowed disabled:bg-outline disabled:shadow-none disabled:hover:bg-outline sm:w-auto sm:px-6"
               >
                 <ShoppingBag className="h-5 w-5" aria-hidden="true" />
                 <span>{ctaLabel}</span>

@@ -4,7 +4,7 @@ export default function ProductSkeleton({ count = 8 }: { count?: number }) {
     <div
       role="status"
       aria-label="Đang tải thực đơn"
-      className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 lg:gap-5"
+      className="grid grid-cols-1 gap-3 min-[375px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 lg:gap-5"
     >
       {Array.from({ length: count }, (_, index) => (
         <div

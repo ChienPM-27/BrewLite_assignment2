@@ -15,10 +15,10 @@ export default function FloatingCartButton() {
   if (!hydrated || badgeCount === 0) return null;
 
   return (
-    <div className="fixed bottom-6 right-4 z-40 sm:right-8">
+    <div className="fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-4 right-4 z-40 sm:left-auto sm:right-8">
       <Link
         href="/cart"
-        className="group flex items-center gap-3 rounded-full bg-primary px-5 py-2.5 text-surface-milk shadow-dock transition-all hover:bg-primary-hover active:scale-95"
+        className="group flex min-h-11 items-center justify-between gap-3 rounded-full bg-primary px-4 py-2.5 text-surface-milk shadow-dock transition-all hover:bg-primary-hover active:scale-95 sm:justify-start sm:px-5"
       >
         <span className="relative">
           <ShoppingBag className="h-5 w-5" aria-hidden="true" />

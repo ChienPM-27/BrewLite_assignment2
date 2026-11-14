@@ -15,10 +15,19 @@ interface ProductImageProps {
  * Ảnh sản phẩm. Khi `imageUrl` là null hoặc tải lỗi thì hiển thị placeholder
  * (BR: imageUrl: null không phải lỗi của Product API).
  */
-export default function ProductImage({ src, alt, className = '', muted = false }: ProductImageProps) {
-  const [failed, setFailed] = useState(false);
+// Dữ liệu đã seed và giỏ hàng cũ có thể còn giữ URL ảnh trà sữa của món Trà dâu.
+export function resolveProductImage(src: string | null, productName: string): string | null {
+  return productName.trim().normalize('NFC').toLocaleLowerCase('vi') === 'trà dâu' &&
+    src?.includes('photo-1558857563-b371033873b8')
+      ? '/images/products/strawberry-tea.jpg'
+      : src;
+}
 
-  if (!src || failed) {
+export default function ProductImage({ src, alt, className = '', muted = false }: ProductImageProps) {
+  const imageSrc = resolveProductImage(src, alt);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+
+  if (!imageSrc || imageSrc === failedSrc) {
     return (
       <div
         role="img"
@@ -33,10 +42,10 @@ export default function ProductImage({ src, alt, className = '', muted = false }
   return (
     // eslint-disable-next-line @next/next/no-img-element -- ảnh đến từ nhiều domain bên ngoài (seed data)
     <img
-      src={src}
+      src={imageSrc}
       alt={alt}
       loading="lazy"
-      onError={() => setFailed(true)}
+      onError={() => setFailedSrc(imageSrc)}
       className={`${className} ${muted ? 'grayscale contrast-75 brightness-95' : ''}`}
     />
   );
