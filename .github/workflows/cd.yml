@@ -1,0 +1,203 @@
+name: BrewLite CD Pipeline
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+concurrency:
+  group: brewlite-cd-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/api
+
+jobs:
+  # ========================================================
+  # GIAI ĐOẠN 1: QUALITY GATE (KIỂM CHỨNG TRƯỚC KHI DEPLOY)
+  # ========================================================
+  quality-gate:
+    name: 🛡️ Pre-deploy Quality Gate & Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (Node 22)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: apps/api/package-lock.json
+
+      - name: Install Backend Dependencies
+        working-directory: apps/api
+        run: npm ci
+
+      - name: Lint Backend
+        working-directory: apps/api
+        run: npm run lint
+
+      - name: Unit Tests Backend
+        working-directory: apps/api
+        run: npm run test:ci
+
+      - name: Install Frontend Dependencies
+        working-directory: apps/web
+        run: npm ci
+
+      - name: Lint Frontend
+        working-directory: apps/web
+        run: npm run lint
+
+      - name: Frontend Component Tests
+        working-directory: apps/web
+        run: npm test
+
+  # ========================================================
+  # GIAI ĐOẠN 2: BUILD DOCKER IMAGE & PUSH GHCR
+  # ========================================================
+  build-and-push-ghcr:
+    name: 🐳 Build & Push Backend Image to GHCR
+    runs-on: ubuntu-latest
+    needs: quality-gate
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry (GHCR)
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/api
+          file: ./apps/api/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ========================================================
+  # GIAI ĐOẠN 3: AN TOÀN DATABASE MIGRATION (SUPABASE)
+  # ========================================================
+  database-migration:
+    name: 🗄️ Supabase Database Migration
+    runs-on: ubuntu-latest
+    needs: build-and-push-ghcr
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (Node 22)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: apps/api/package-lock.json
+
+      - name: Install Dependencies
+        working-directory: apps/api
+        run: npm ci
+
+      - name: Apply Database Migrations (Session Mode 5432)
+        working-directory: apps/api
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL || secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.PRODUCTION_DIRECT_URL || secrets.DIRECT_URL }}
+        run: |
+          echo "🚀 Đang thực thi di chuyển cơ sở dữ liệu trên Supabase Production..."
+          npx prisma migrate deploy
+          echo "✅ Database migration hoàn tất thành công!"
+
+  # ========================================================
+  # GIAI ĐOẠN 4: KÍCH HOẠT DEPLOY CLOUD (RENDER & VERCEL)
+  # ========================================================
+  deploy-cloud:
+    name: ☁️ Deploy to Production (Render API & Vercel Web)
+    runs-on: ubuntu-latest
+    needs: database-migration
+    steps:
+      - name: Trigger Render Backend Deployment
+        if: env.RENDER_DEPLOY_HOOK != ''
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          echo "🚀 Gửi yêu cầu triển khai tới Render Web Service..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$RENDER_DEPLOY_HOOK")
+          HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "✅ Kích hoạt Render deploy thành công (HTTP $HTTP_STATUS)!"
+          else
+            echo "⚠️ Render deploy hook trả về mã HTTP: $HTTP_STATUS"
+          fi
+
+      - name: Trigger Vercel Frontend Deployment
+        if: env.VERCEL_DEPLOY_HOOK != ''
+        env:
+          VERCEL_DEPLOY_HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          echo "🚀 Gửi yêu cầu triển khai tới Vercel Frontend..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$VERCEL_DEPLOY_HOOK")
+          HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "✅ Kích hoạt Vercel deploy thành công (HTTP $HTTP_STATUS)!"
+          else
+            echo "⚠️ Vercel deploy hook trả về mã HTTP: $HTTP_STATUS"
+          fi
+
+  # ========================================================
+  # GIAI ĐOẠN 5: SMOKE TEST & TỰ ĐỘNG THÔNG BÁO ROLLBACK
+  # ========================================================
+  smoke-test-production:
+    name: 🧪 Smoke Test Production & Rollback Guard
+    runs-on: ubuntu-latest
+    needs: deploy-cloud
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Wait for Cloud Services Warmup
+        run: |
+          echo "⏳ Chờ 30 giây để Render Web Service cập nhật và khởi động container mới..."
+          sleep 30
+
+      - name: Execute Production Smoke Test
+        env:
+          PRODUCTION_API_URL: ${{ secrets.PRODUCTION_API_URL || 'https://brewlite.onrender.com/api/v1' }}
+        run: |
+          chmod +x ./scripts/smoke-test.sh
+          echo "👉 Bắt đầu chạy Smoke Test trên Production API: $PRODUCTION_API_URL"
+          ./scripts/smoke-test.sh "$PRODUCTION_API_URL"
+
+      - name: Rollback Notice on Failure
+        if: failure()
+        run: |
+          echo "::error title=Production Deployment Failed!::Kịch bản Smoke Test trên Production thất bại! Đang yêu cầu dừng phát hành và kích hoạt quy trình Rollback theo docs/deployment.md."
+          echo "🚨 Vui lòng truy cập Render Dashboard & Vercel Dashboard để Rollback về deployment ổn định trước đó."
