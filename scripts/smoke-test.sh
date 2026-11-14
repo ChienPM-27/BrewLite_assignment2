@@ -52,6 +52,15 @@ else
   echo "   ⚠️ Không trích xuất được token, phản hồi: $LOGIN_RES"
 fi
 
+# 5. Thử nghiệm Endpoint Thanh toán mô phỏng
+echo "👉 5. Thử nghiệm Cổng thanh toán mô phỏng (VNPay Checksum Guard)..."
+IPN_RES=$(curl -s "$API_URL/payments/vnpay/ipn" || true)
+if echo "$IPN_RES" | grep -q "97"; then
+  echo "   ✅ Cổng thanh toán phản hồi đúng chuẩn bảo mật (RspCode 97: Invalid Signature)!"
+else
+  echo "   ⚠️ Phản hồi cổng thanh toán: $IPN_RES"
+fi
+
 echo "=========================================================="
 echo "🎉 SMOKE TEST HOÀN TẤT THÀNH CÔNG!"
 echo "=========================================================="
