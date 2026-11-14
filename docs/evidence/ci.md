@@ -24,10 +24,11 @@ Tất cả các tính năng và tài liệu của các thành viên đều đư�
 
 | PR # | Tác giả | Module / Hạng mục công việc | Link Pull Request trên GitHub | Link GitHub Actions Run (Xanh) | Trạng thái |
 | :---: | :--- | :--- | :--- | :--- | :---: |
+| **#17** | Nhật Lan | Module test Menu & Products (`SP2-03`) | [#17](https://github.com/ChienPM-27/BrewLite_assignment2/pull/17) | [Run #43616237910](https://github.com/ChienPM-27/BrewLite_assignment2/actions/runs/43616237910) | Merged |
+| **#14** | Tôn Thất Hạnh | Module test Order & Inventory (`SP2-06`) | [#14](https://github.com/ChienPM-27/BrewLite_assignment2/pull/14) | [Run #43611335364](https://github.com/ChienPM-27/BrewLite_assignment2/actions/runs/43611335364) | Merged |
+| **#15** | Nguyễn Trần Gia Kiệt | Cập nhật Payment & Smoke test (`SP2-07`) | [#15](https://github.com/ChienPM-27/BrewLite_assignment2/pull/15) | [Run #43568749301](https://github.com/ChienPM-27/BrewLite_assignment2/actions/runs/43568749301) | Merged |
+| **#12** | Quách Tuấn Hào | Module test Auth & Cart (`SP2-05`) | [#12](https://github.com/ChienPM-27/BrewLite_assignment2/pull/12) | [Run #43431155225](https://github.com/ChienPM-27/BrewLite_assignment2/actions/runs/43431155225) | Merged |
 | **#13** | Nguyễn Quang Huy | Bộ kiểm thử Playwright E2E (`SP2-08`) | [#13](https://github.com/ChienPM-27/BrewLite_assignment2/pull/13) | [Run #43460199865](https://github.com/ChienPM-27/BrewLite_assignment2/actions/runs/43460199865) | Merged |
-| **#12** | Quách Tuấn Hào | Module test Auth & Cart (`SP2-05`) | [#12](https://github.com/ChienPM-27/BrewLite_assignment2/pull/12) | [Run #43431155225](https://github.com/ChienPM-27/BrewLite_assignment2/actions/runs/43431155225) | CI Pass |
-| **#14** | Tôn Thất Hạnh | Module test Order (`SP2-06`) | [#14](https://github.com/ChienPM-27/BrewLite_assignment2/pull/14) | [Run #43556350151](https://github.com/ChienPM-27/BrewLite_assignment2/actions/runs/43556350151) | CI Pass |
-| **#15** | Nguyễn Trần Gia Kiệt | Cập nhật Payment & Smoke test (`SP2-07`) | [#15](https://github.com/ChienPM-27/BrewLite_assignment2/pull/15) | [Run #43568749301](https://github.com/ChienPM-27/BrewLite_assignment2/actions/runs/43568749301) | CI Pass |
 | **#11** | Minh Chiến | Hoàn tất đóng Sprint 1 (`SP1-01`..`08`) | [#11](https://github.com/ChienPM-27/BrewLite_assignment2/pull/11) | [Run #43423663898](https://github.com/ChienPM-27/BrewLite_assignment2/actions/runs/43423663898) | Merged |
 | **#2** | Vũ Hoàng Huy | Module test Pricing & Detail (`SP2-04`) | [#2](https://github.com/ChienPM-27/BrewLite_assignment2/pull/2) | [Run #43261470718](https://github.com/ChienPM-27/BrewLite_assignment2/actions/runs/43261470718) | Merged |
 | **#1** | Minh Chiến | Thiết lập khung dự án ban đầu (`SP0-01`) | [#1](https://github.com/ChienPM-27/BrewLite_assignment2/pull/1) | [Run #42766877263](https://github.com/ChienPM-27/BrewLite_assignment2/actions/runs/42766877263) | Merged |
