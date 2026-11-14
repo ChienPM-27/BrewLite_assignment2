@@ -130,9 +130,13 @@ jobs:
         working-directory: apps/api
         env:
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL || secrets.DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.PRODUCTION_DIRECT_URL || secrets.DIRECT_URL }}
+          DIRECT_URL: ${{ secrets.PRODUCTION_DIRECT_URL || secrets.DIRECT_URL || secrets.PRODUCTION_DATABASE_URL || secrets.DATABASE_URL }}
         run: |
           echo "🚀 Đang thực thi di chuyển cơ sở dữ liệu trên Supabase Production..."
+          if [ -z "$DATABASE_URL" ] || [ -z "$DIRECT_URL" ]; then
+            echo "::error title=Missing Database Secrets::Chưa cấu hình DIRECT_URL hoặc DATABASE_URL trong GitHub Secrets! Vui lòng vào GitHub Settings -> Secrets and variables -> Actions để thêm DIRECT_URL (Session pooler port 5432) và DATABASE_URL."
+            exit 1
+          fi
           npx prisma migrate deploy
           echo "✅ Database migration hoàn tất thành công!"
 
