@@ -68,7 +68,7 @@ describe('Payments Module Integration Tests (SP2-07 / Task 5.2)', () => {
   async function createTestOrder(
     userId: string,
     amount = 65000,
-    status = OrderStatus.PENDING,
+    status: OrderStatus = OrderStatus.PENDING,
   ) {
     const order = await prisma.order.create({
       data: {
