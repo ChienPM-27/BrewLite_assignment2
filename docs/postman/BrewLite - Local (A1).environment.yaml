@@ -1,0 +1,24 @@
+name: BrewLite - Local (A1)
+values:
+  - key: base_url
+    value: 'http://localhost:4000/api/v1'
+  - key: jwt_token
+    value: ''
+  - key: admin_jwt_token
+    value: ''
+  - key: customer_id
+    value: ''
+  - key: product_id
+    value: ''
+  - key: order_id
+    value: ''
+  - key: order_number
+    value: ''
+  - key: payment_id
+    value: ''
+  - key: idempotency_key
+    value: ''
+  - key: idempotency_key_fail
+    value: ''
+  - key: idempotency_vnpay
+    value: ''

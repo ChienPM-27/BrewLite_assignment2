@@ -1,0 +1,31 @@
+$kind: http-request
+name: 3.1 Create Order (POST /orders)
+url: "{{base_url}}/orders"
+method: POST
+headers:
+  Authorization: Bearer {{jwt_token}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "items": [
+        {
+          "productId": "{{product_id}}",
+          "size": "M",
+          "quantity": 1,
+          "toppingIds": []
+        }
+      ],
+      "promotionCode": "WELCOME10"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      var res = pm.response.json();
+      if (res.data && res.data.id) {
+          pm.environment.set('order_id', res.data.id);
+          pm.environment.set('order_number', res.data.orderNumber);
+      }
+    language: text/javascript
+order: 1000

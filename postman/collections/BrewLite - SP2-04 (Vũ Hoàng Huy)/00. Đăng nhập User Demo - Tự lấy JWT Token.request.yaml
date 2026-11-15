@@ -1,0 +1,33 @@
+$kind: http-request
+name: 00. Đăng nhập User Demo -> Tự lấy JWT Token
+description: Đăng nhập tài khoản demo. Script tự động lưu accessToken để các request Đặt hàng và Hủy đơn dùng chung.
+url: "{{baseUrl}}/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "email": "demo@brewlite.test",
+      "password": "Demo@12345"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Đăng nhập thành công 200 OK", function () {
+          pm.response.to.have.status(200);
+      });
+
+      const res = pm.response.json();
+      const token = res.data && res.data.accessToken;
+      pm.test("Nhận được accessToken hợp lệ", function () {
+          pm.expect(token).to.be.a('string');
+      });
+
+      if (token) {
+          pm.collectionVariables.set("accessToken", token);
+          console.log("Đã tự động lưu accessToken vào biến Collection!");
+      }
+    language: text/javascript
+order: 1000

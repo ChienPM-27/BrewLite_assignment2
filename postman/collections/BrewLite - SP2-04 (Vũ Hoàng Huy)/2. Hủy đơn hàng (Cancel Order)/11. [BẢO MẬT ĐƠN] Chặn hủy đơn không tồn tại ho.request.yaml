@@ -1,0 +1,17 @@
+$kind: http-request
+name: 11. [BẢO MẬT ĐƠN] Chặn hủy đơn không tồn tại hoặc của người khác (Verify 404)
+description: Hủy đơn hàng của khách hàng khác hoặc mã đơn không tồn tại -> Trả về 404 Not Found.
+url: "{{baseUrl}}/orders/order-not-belong-to-user-9999/cancel"
+method: POST
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Verify trả về HTTP 404 Not Found (Không làm lộ sự tồn tại của đơn)", function () {
+          pm.response.to.have.status(404);
+      });
+    language: text/javascript
+order: 3000

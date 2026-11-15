@@ -1,0 +1,23 @@
+$kind: http-request
+name: 10. [STATE GUARD] Chặn hủy lại đơn đã bị hủy (Verify 409 Conflict)
+description: Gửi request hủy lần 2 đối với đơn vừa bị hủy ở Request 09. State machine chặn đứng với HTTP 409 Conflict để tránh bug hoàn kho 2 lần.
+url: "{{baseUrl}}/orders/{{orderId}}/cancel"
+method: POST
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Verify trả về HTTP 409 Conflict khi cố tình hủy lại đơn", function () {
+          pm.response.to.have.status(409);
+      });
+
+      const res = pm.response.json();
+      pm.test("Thông báo lỗi nêu rõ đơn ở trạng thái CANCELLED không thể hủy", function () {
+          pm.expect(res.message).to.include("không thể hủy");
+      });
+      console.log("State guard hoạt động hoàn hảo: Ngăn chặn hoàn kho 2 lần!");
+    language: text/javascript
+order: 2000

@@ -1,0 +1,46 @@
+$kind: http-request
+name: 06. [BẢO MẬT GIÁ] Chống giả mạo giá từ Client (Client Price Tampering)
+description: "Client cố tình gửi unitPrice: 1, totalAmount: 2. Chứng minh PricingService Backend tự đọc giá từ DB và bỏ qua giá gian lận."
+url: "{{baseUrl}}/orders"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "items": [
+        {
+          "productId": "{{productId}}",
+          "size": "L",
+          "quantity": 2,
+          "toppingIds": [
+            "{{toppingId1}}"
+          ],
+          "basePrice": 1,
+          "unitPrice": 1,
+          "subtotal": 2,
+          "totalAmount": 2
+        }
+      ]
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Backend chấp nhận tạo đơn nhưng bỏ qua giá giả mạo (201 Created)", function () {
+          pm.response.to.have.status(201);
+      });
+
+      const res = pm.response.json();
+      const order = res.data;
+      pm.test("Backend KHÔNG bị lừa bởi giá 1 đồng (totalAmount > 10.000đ)", function () {
+          pm.expect(Number(order.totalAmount)).to.be.above(10000);
+          pm.expect(Number(order.totalAmount)).to.not.equal(2);
+      });
+      console.log("Client gửi unitPrice=1, totalAmount=2 -> Backend tính chuẩn ra:", order.totalAmount, "VNĐ");
+    language: text/javascript
+order: 6000

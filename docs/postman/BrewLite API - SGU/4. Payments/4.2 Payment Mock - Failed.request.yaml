@@ -1,0 +1,21 @@
+$kind: http-request
+url: "{{base_url}}/payments"
+method: POST
+headers:
+  Authorization: Bearer {{jwt_token}}
+  Idempotency-Key: "{{idempotency_key_fail}}"
+  X-Mock-Outcome: FAILED
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "orderId": "{{order_id}}",
+      "method": "BANK_CARD",
+      "gateway": "MOCK"
+    }
+scripts:
+  - type: beforeRequest
+    code: pm.environment.set('idempotency_key_fail', pm.variables.replaceIn('{{$guid}}'));
+    language: text/javascript
+order: 2000

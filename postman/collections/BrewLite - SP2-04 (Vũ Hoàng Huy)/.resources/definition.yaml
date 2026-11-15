@@ -1,0 +1,15 @@
+$kind: collection
+description: |-
+  Postman Collection kiểm thử đầy đủ phạm vi phân công của Vũ Hoàng Huy:
+  1. Chi tiết sản phẩm & Tùy biến món (FR-07, FR-08)
+  2. Bảng giá Pricing & Chống gian lận giá (FR-09)
+  3. Hủy đơn hàng (Cancel Order - PENDING -> CANCELLED, State Guard 409, Hoàn kho an toàn)
+
+  Toàn bộ Token, Product ID, Topping ID và Order ID được tự động liên kết động giữa các Request.
+variables:
+  baseUrl: https://brew-lite.vercel.app/api/v1
+  accessToken: ""
+  productId: ""
+  toppingId1: ""
+  toppingId2: ""
+  orderId: ""

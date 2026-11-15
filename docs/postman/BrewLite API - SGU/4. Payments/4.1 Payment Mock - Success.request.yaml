@@ -1,0 +1,28 @@
+$kind: http-request
+url: "{{base_url}}/payments"
+method: POST
+headers:
+  Authorization: Bearer {{jwt_token}}
+  Idempotency-Key: "{{idempotency_key}}"
+  X-Mock-Outcome: SUCCESS
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "orderId": "{{order_id}}",
+      "method": "E_WALLET",
+      "gateway": "MOCK"
+    }
+scripts:
+  - type: beforeRequest
+    code: pm.environment.set('idempotency_key', pm.variables.replaceIn('{{$guid}}'));
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      var res = pm.response.json();
+      if (res.data && res.data.id) {
+          pm.environment.set('payment_id', res.data.id);
+      }
+    language: text/javascript
+order: 1000

@@ -1,0 +1,23 @@
+$kind: http-request
+name: 09. Hủy đơn hàng hợp lệ (Happy Path - Trạng thái PENDING -> CANCELLED)
+description: Khách hàng hủy đơn hàng đang ở trạng thái PENDING. Backend chuyển trạng thái sang CANCELLED và tự động hoàn kho nguyên liệu theo snapshot trong transaction.
+url: "{{baseUrl}}/orders/{{orderId}}/cancel"
+method: POST
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Hủy đơn thành công 200 OK", function () {
+          pm.response.to.have.status(200);
+      });
+
+      const res = pm.response.json();
+      pm.test("Trạng thái đơn hàng chuyển thành CANCELLED", function () {
+          pm.expect(res.data.status).to.equal("CANCELLED");
+      });
+      console.log("Đơn hàng", pm.collectionVariables.get("orderId"), "đã được hủy và hoàn kho thành công!");
+    language: text/javascript
+order: 1000

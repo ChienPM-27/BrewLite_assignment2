@@ -1,0 +1,13 @@
+$kind: http-request
+name: 03. Xem chi tiết món - ID không tồn tại (FR-07 / AC-07.2 - Verify 404)
+description: Kiểm tra xử lý lỗi 404 khi người dùng tìm sản phẩm không có trong DB.
+url: "{{baseUrl}}/products/khong-ton-tai-9999"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Verify trả về HTTP 404 Not Found khi ID không tồn tại", function () {
+          pm.response.to.have.status(404);
+      });
+    language: text/javascript
+order: 3000

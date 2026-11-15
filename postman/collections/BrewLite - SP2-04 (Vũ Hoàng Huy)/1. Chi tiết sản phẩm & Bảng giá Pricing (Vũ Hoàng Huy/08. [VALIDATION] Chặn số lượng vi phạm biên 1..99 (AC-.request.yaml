@@ -1,0 +1,32 @@
+$kind: http-request
+name: 08. [VALIDATION] Chặn số lượng vi phạm biên 1..99 (AC-08.3 - Verify 400)
+description: Gửi quantity = 0 -> Backend chặn đứng với lỗi 'quantity must not be less than 1'.
+url: "{{baseUrl}}/orders"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "items": [
+        {
+          "productId": "{{productId}}",
+          "size": "M",
+          "quantity": 0,
+          "toppingIds": []
+        }
+      ]
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Verify trả về HTTP 400 Bad Request khi số lượng = 0", function () {
+          pm.response.to.have.status(400);
+      });
+    language: text/javascript
+order: 8000

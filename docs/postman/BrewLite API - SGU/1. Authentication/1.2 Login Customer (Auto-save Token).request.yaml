@@ -1,0 +1,23 @@
+$kind: http-request
+url: "{{base_url}}/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "email": "demo@brewlite.test",
+      "password": "Demo@12345"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      var res = pm.response.json();
+      if (res.data && res.data.accessToken) {
+          pm.environment.set('jwt_token', res.data.accessToken);
+          pm.environment.set('customer_id', res.data.user.id);
+          console.log('Saved jwt_token');
+      }
+    language: text/javascript
+order: 2000

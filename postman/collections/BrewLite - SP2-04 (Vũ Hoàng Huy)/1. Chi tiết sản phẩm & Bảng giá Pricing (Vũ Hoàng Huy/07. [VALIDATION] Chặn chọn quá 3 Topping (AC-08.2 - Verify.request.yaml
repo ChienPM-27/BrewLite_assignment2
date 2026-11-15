@@ -1,0 +1,37 @@
+$kind: http-request
+name: 07. [VALIDATION] Chặn chọn quá 3 Topping (AC-08.2 - Verify 400)
+description: Gửi mảng 4 topping -> Backend chặn đứng bằng HTTP 400 Bad Request.
+url: "{{baseUrl}}/orders"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "items": [
+        {
+          "productId": "{{productId}}",
+          "size": "M",
+          "quantity": 1,
+          "toppingIds": [
+            "top_1",
+            "top_2",
+            "top_3",
+            "top_4"
+          ]
+        }
+      ]
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("Verify trả về HTTP 400 Bad Request do vi phạm tối đa 3 topping", function () {
+          pm.response.to.have.status(400);
+      });
+    language: text/javascript
+order: 7000

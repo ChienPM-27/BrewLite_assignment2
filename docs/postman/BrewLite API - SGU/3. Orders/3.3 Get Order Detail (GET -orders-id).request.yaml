@@ -1,0 +1,7 @@
+$kind: http-request
+name: 3.3 Get Order Detail (GET /orders/:id)
+url: "{{base_url}}/orders/{{order_id}}"
+method: GET
+headers:
+  Authorization: Bearer {{jwt_token}}
+order: 3000

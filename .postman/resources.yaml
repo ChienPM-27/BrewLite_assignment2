@@ -1,0 +1,18 @@
+# Use this workspace to collaborate
+workspace:
+  id: 652193db-98c9-431c-8590-cde4a939ea03
+
+localResources:
+  collections:
+    - ../docs/postman/BrewLite_API.postman_collection.json
+    - ../docs/postman/BrewLite API - SGU
+  environments:
+    - ../docs/postman/BrewLite - Local (A1).environment.yaml
+    - ../docs/postman/BrewLite - Production (A2).environment.yaml
+
+# Each entry here maps a local resource to one or more corresponding objects in Postman Cloud
+
+cloudResources:
+  collections:
+    ../docs/postman/BrewLite API - SGU: be217d5e-1b2b-42b2-bb1f-1d722e24bcab
+    ../postman/collections/BrewLite - SP2-04 (Vũ Hoàng Huy): c1f7b8a2-9481-4e7a-9a91-brewlite-sp2-04

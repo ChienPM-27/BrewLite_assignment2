@@ -1,0 +1,10 @@
+$kind: http-request
+name: 3.2 Get My Orders History (GET /orders/me)
+url: "{{base_url}}/orders/me?page=1&limit=10"
+method: GET
+headers:
+  Authorization: Bearer {{jwt_token}}
+queryParams:
+  page: "1"
+  limit: "10"
+order: 2000

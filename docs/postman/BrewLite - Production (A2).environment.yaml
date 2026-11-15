@@ -1,0 +1,24 @@
+name: BrewLite - Production (A2)
+values:
+  - key: base_url
+    value: 'https://brewlite.onrender.com/api/v1'
+  - key: jwt_token
+    value: ''
+  - key: admin_jwt_token
+    value: ''
+  - key: customer_id
+    value: ''
+  - key: product_id
+    value: ''
+  - key: order_id
+    value: ''
+  - key: order_number
+    value: ''
+  - key: payment_id
+    value: ''
+  - key: idempotency_key
+    value: ''
+  - key: idempotency_key_fail
+    value: ''
+  - key: idempotency_vnpay
+    value: ''

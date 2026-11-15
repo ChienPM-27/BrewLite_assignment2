@@ -1,0 +1,654 @@
+{
+	"info": {
+		"_postman_id": "c1f7b8a2-9481-4e7a-9a91-brewlite-sp2-04",
+		"name": "BrewLite - SP2-04 (Vũ Hoàng Huy)",
+		"description": "Postman Collection kiểm thử đầy đủ phạm vi phân công của Vũ Hoàng Huy:\n1. Chi tiết sản phẩm & Tùy biến món (FR-07, FR-08)\n2. Bảng giá Pricing & Chống gian lận giá (FR-09)\n3. Hủy đơn hàng (Cancel Order - PENDING -> CANCELLED, State Guard 409, Hoàn kho an toàn)\n\nToàn bộ Token, Product ID, Topping ID và Order ID được tự động liên kết động giữa các Request.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "https://brew-lite.vercel.app/api/v1",
+			"type": "string"
+		},
+		{
+			"key": "accessToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "productId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "toppingId1",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "toppingId2",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "orderId",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "00. Đăng nhập User Demo -> Tự lấy JWT Token",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Đăng nhập thành công 200 OK\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"const res = pm.response.json();",
+							"const token = res.data && res.data.accessToken;",
+							"pm.test(\"Nhận được accessToken hợp lệ\", function () {",
+							"    pm.expect(token).to.be.a('string');",
+							"});",
+							"",
+							"if (token) {",
+							"    pm.collectionVariables.set(\"accessToken\", token);",
+							"    console.log(\"Đã tự động lưu accessToken vào biến Collection!\");",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"demo@brewlite.test\",\n  \"password\": \"Demo@12345\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/auth/login",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"auth",
+						"login"
+					]
+				},
+				"description": "Đăng nhập tài khoản demo. Script tự động lưu accessToken để các request Đặt hàng và Hủy đơn dùng chung."
+			},
+			"response": []
+		},
+		{
+			"name": "1. Chi tiết sản phẩm & Bảng giá Pricing (Vũ Hoàng Huy)",
+			"item": [
+				{
+					"name": "01. Lấy danh sách sản phẩm (Public) -> Tự lưu Product ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code là 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"const res = pm.response.json();",
+									"const items = res.data || [];",
+									"pm.test(\"Danh sách món có dữ liệu (> 0 món)\", function () {",
+									"    pm.expect(items.length).to.be.above(0);",
+									"});",
+									"",
+									"if (items.length > 0) {",
+									"    const coffee = items.find(p => p.name.includes('Cà phê sữa')) || items[0];",
+									"    pm.collectionVariables.set(\"productId\", coffee.id);",
+									"    console.log(\"Đã chọn món:\", coffee.name, \"- ID:\", coffee.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/products",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"products"
+							]
+						},
+						"description": "Gọi danh sách sản phẩm. Tự động lưu ID món Cà phê sữa đá vào {{productId}}."
+					},
+					"response": []
+				},
+				{
+					"name": "02. Xem chi tiết món hợp lệ (FR-07 / AC-07.1) -> Tự lưu Topping IDs",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code là 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"const res = pm.response.json();",
+									"const product = res.data;",
+									"pm.test(\"Trả về đầy đủ thông tin chi tiết, sizePrices và toppings\", function () {",
+									"    pm.expect(product).to.have.property('id');",
+									"    pm.expect(product).to.have.property('name');",
+									"    pm.expect(product).to.have.property('basePrice');",
+									"    pm.expect(product.sizePrices).to.be.an('array');",
+									"    pm.expect(product.toppings).to.be.an('array');",
+									"});",
+									"",
+									"if (product.toppings && product.toppings.length >= 2) {",
+									"    pm.collectionVariables.set(\"toppingId1\", product.toppings[0].id);",
+									"    pm.collectionVariables.set(\"toppingId2\", product.toppings[1].id);",
+									"    console.log(\"Đã lưu toppingId1:\", product.toppings[0].name, \"toppingId2:\", product.toppings[1].name);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/products/{{productId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"products",
+								"{{productId}}"
+							]
+						},
+						"description": "Xem chi tiết món theo ID. Trả về basePrice, sizePrices và danh sách topping khả dụng."
+					},
+					"response": []
+				},
+				{
+					"name": "03. Xem chi tiết món - ID không tồn tại (FR-07 / AC-07.2 - Verify 404)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Verify trả về HTTP 404 Not Found khi ID không tồn tại\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/products/khong-ton-tai-9999",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"products",
+								"khong-ton-tai-9999"
+							]
+						},
+						"description": "Kiểm tra xử lý lỗi 404 khi người dùng tìm sản phẩm không có trong DB."
+					},
+					"response": []
+				},
+				{
+					"name": "04. Xem chi tiết món - ID sai định dạng (FR-07 / AC-07.3 - Verify 400)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Verify trả về HTTP 400 Bad Request cho ID sai định dạng regex\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/products/bad!id@regex#check",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"products",
+								"bad!id@regex#check"
+							]
+						},
+						"description": "ID chứa ký tự đặc biệt vi phạm regex -> Trả về 400 Bad Request."
+					},
+					"response": []
+				},
+				{
+					"name": "05. Tính giá Pricing & Đặt hàng (FR-08, FR-09 / Happy Path) -> Tự lưu Order ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Tạo đơn thành công 201 Created\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"const res = pm.response.json();",
+									"const order = res.data;",
+									"pm.test(\"Backend PricingService tự tính đúng tổng tiền > 0\", function () {",
+									"    pm.expect(order).to.have.property('totalAmount');",
+									"    pm.expect(Number(order.totalAmount)).to.be.above(0);",
+									"    pm.expect(order.status).to.equal(\"PENDING\");",
+									"});",
+									"",
+									"if (order && order.id) {",
+									"    pm.collectionVariables.set(\"orderId\", order.id);",
+									"    console.log(\"Đã lưu orderId vừa tạo:\", order.id, \"(Dùng cho mục Hủy đơn!)\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"size\": \"M\",\n      \"quantity\": 2,\n      \"toppingIds\": [\n        \"{{toppingId1}}\",\n        \"{{toppingId2}}\"\n      ]\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/orders",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"orders"
+							]
+						},
+						"description": "Tạo đơn hàng 2 ly Size M (+5k) kèm 2 topping. PricingService ở Backend tính toán độc lập và tự lưu orderId để test hủy đơn."
+					},
+					"response": []
+				},
+				{
+					"name": "06. [BẢO MẬT GIÁ] Chống giả mạo giá từ Client (Client Price Tampering)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Backend chấp nhận tạo đơn nhưng bỏ qua giá giả mạo (201 Created)\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"const res = pm.response.json();",
+									"const order = res.data;",
+									"pm.test(\"Backend KHÔNG bị lừa bởi giá 1 đồng (totalAmount > 10.000đ)\", function () {",
+									"    pm.expect(Number(order.totalAmount)).to.be.above(10000);",
+									"    pm.expect(Number(order.totalAmount)).to.not.equal(2);",
+									"});",
+									"console.log(\"Client gửi unitPrice=1, totalAmount=2 -> Backend tính chuẩn ra:\", order.totalAmount, \"VNĐ\");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"size\": \"L\",\n      \"quantity\": 2,\n      \"toppingIds\": [\n        \"{{toppingId1}}\"\n      ],\n      \"basePrice\": 1,\n      \"unitPrice\": 1,\n      \"subtotal\": 2,\n      \"totalAmount\": 2\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/orders",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"orders"
+							]
+						},
+						"description": "Client cố tình gửi unitPrice: 1, totalAmount: 2. Chứng minh PricingService Backend tự đọc giá từ DB và bỏ qua giá gian lận."
+					},
+					"response": []
+				},
+				{
+					"name": "07. [VALIDATION] Chặn chọn quá 3 Topping (AC-08.2 - Verify 400)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Verify trả về HTTP 400 Bad Request do vi phạm tối đa 3 topping\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"size\": \"M\",\n      \"quantity\": 1,\n      \"toppingIds\": [\n        \"top_1\",\n        \"top_2\",\n        \"top_3\",\n        \"top_4\"\n      ]\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/orders",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"orders"
+							]
+						},
+						"description": "Gửi mảng 4 topping -> Backend chặn đứng bằng HTTP 400 Bad Request."
+					},
+					"response": []
+				},
+				{
+					"name": "08. [VALIDATION] Chặn số lượng vi phạm biên 1..99 (AC-08.3 - Verify 400)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Verify trả về HTTP 400 Bad Request khi số lượng = 0\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"size\": \"M\",\n      \"quantity\": 0,\n      \"toppingIds\": []\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/orders",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"orders"
+							]
+						},
+						"description": "Gửi quantity = 0 -> Backend chặn đứng với lỗi 'quantity must not be less than 1'."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "2. Hủy đơn hàng (Cancel Order)",
+			"item": [
+				{
+					"name": "09. Hủy đơn hàng hợp lệ (Happy Path - Trạng thái PENDING -> CANCELLED)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Hủy đơn thành công 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"const res = pm.response.json();",
+									"pm.test(\"Trạng thái đơn hàng chuyển thành CANCELLED\", function () {",
+									"    pm.expect(res.data.status).to.equal(\"CANCELLED\");",
+									"});",
+									"console.log(\"Đơn hàng\", pm.collectionVariables.get(\"orderId\"), \"đã được hủy và hoàn kho thành công!\");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/orders/{{orderId}}/cancel",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"orders",
+								"{{orderId}}",
+								"cancel"
+							]
+						},
+						"description": "Khách hàng hủy đơn hàng đang ở trạng thái PENDING. Backend chuyển trạng thái sang CANCELLED và tự động hoàn kho nguyên liệu theo snapshot trong transaction."
+					},
+					"response": []
+				},
+				{
+					"name": "10. [STATE GUARD] Chặn hủy lại đơn đã bị hủy (Verify 409 Conflict)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Verify trả về HTTP 409 Conflict khi cố tình hủy lại đơn\", function () {",
+									"    pm.response.to.have.status(409);",
+									"});",
+									"",
+									"const res = pm.response.json();",
+									"pm.test(\"Thông báo lỗi nêu rõ đơn ở trạng thái CANCELLED không thể hủy\", function () {",
+									"    pm.expect(res.message).to.include(\"không thể hủy\");",
+									"});",
+									"console.log(\"State guard hoạt động hoàn hảo: Ngăn chặn hoàn kho 2 lần!\");"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/orders/{{orderId}}/cancel",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"orders",
+								"{{orderId}}",
+								"cancel"
+							]
+						},
+						"description": "Gửi request hủy lần 2 đối với đơn vừa bị hủy ở Request 09. State machine chặn đứng với HTTP 409 Conflict để tránh bug hoàn kho 2 lần."
+					},
+					"response": []
+				},
+				{
+					"name": "11. [BẢO MẬT ĐƠN] Chặn hủy đơn không tồn tại hoặc của người khác (Verify 404)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Verify trả về HTTP 404 Not Found (Không làm lộ sự tồn tại của đơn)\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/orders/order-not-belong-to-user-9999/cancel",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"orders",
+								"order-not-belong-to-user-9999",
+								"cancel"
+							]
+						},
+						"description": "Hủy đơn hàng của khách hàng khác hoặc mã đơn không tồn tại -> Trả về 404 Not Found."
+					},
+					"response": []
+				},
+				{
+					"name": "12. [XÁC THỰC] Chặn hủy đơn khi chưa đăng nhập (Verify 401)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Verify trả về HTTP 401 Unauthorized khi không có Bearer token\", function () {",
+									"    pm.response.to.have.status(401);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/orders/{{orderId}}/cancel",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"orders",
+								"{{orderId}}",
+								"cancel"
+							]
+						},
+						"description": "Gọi API hủy đơn nhưng không truyền Header Authorization -> JwtAuthGuard chặn với 401 Unauthorized."
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

@@ -1,0 +1,20 @@
+$kind: http-request
+url: "{{base_url}}/payments"
+method: POST
+headers:
+  Authorization: Bearer {{jwt_token}}
+  Idempotency-Key: "{{idempotency_vnpay}}"
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "orderId": "{{order_id}}",
+      "method": "E_WALLET",
+      "gateway": "VNPAY"
+    }
+scripts:
+  - type: beforeRequest
+    code: pm.environment.set('idempotency_vnpay', pm.variables.replaceIn('{{$guid}}'));
+    language: text/javascript
+order: 3000

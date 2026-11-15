@@ -1,0 +1,6 @@
+$kind: http-request
+url: "{{base_url}}/admin/orders"
+method: GET
+headers:
+  Authorization: Bearer {{admin_jwt_token}}
+order: 1000

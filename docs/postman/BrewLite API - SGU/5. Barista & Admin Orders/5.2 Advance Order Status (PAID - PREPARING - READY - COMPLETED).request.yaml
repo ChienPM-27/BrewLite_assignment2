@@ -1,0 +1,14 @@
+$kind: http-request
+name: 5.2 Advance Order Status (PAID -> PREPARING -> READY -> COMPLETED)
+url: "{{base_url}}/admin/orders/{{order_id}}/advance"
+method: PATCH
+headers:
+  Authorization: Bearer {{admin_jwt_token}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "expectedStatus": "PAID"
+    }
+order: 2000

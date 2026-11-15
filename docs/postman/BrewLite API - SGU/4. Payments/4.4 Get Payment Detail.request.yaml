@@ -1,0 +1,6 @@
+$kind: http-request
+url: "{{base_url}}/payments/{{payment_id}}"
+method: GET
+headers:
+  Authorization: Bearer {{jwt_token}}
+order: 4000

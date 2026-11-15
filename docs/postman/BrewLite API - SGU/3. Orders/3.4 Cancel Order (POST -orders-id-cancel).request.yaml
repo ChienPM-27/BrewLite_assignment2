@@ -1,0 +1,7 @@
+$kind: http-request
+name: 3.4 Cancel Order (POST /orders/:id/cancel)
+url: "{{base_url}}/orders/{{order_id}}/cancel"
+method: POST
+headers:
+  Authorization: Bearer {{jwt_token}}
+order: 4000
