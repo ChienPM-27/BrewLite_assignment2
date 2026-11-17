@@ -1,0 +1,28 @@
+$kind: http-request
+name: "TC-DETAIL-03 (AC-08.1): Cấu hình kích cỡ S, M, L theo thứ tự phụ thu"
+description: "Ánh xạ AC-08.1: Kiểm tra cấu hình kích cỡ món gồm 3 size S/M/L, Size S phụ thu 0đ mặc định."
+url: "{{baseUrl}}/products/{{productId}}"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("TC-DETAIL-03: Status code 200 OK", function () {
+          pm.response.to.have.status(200);
+      });
+      const res = pm.response.json();
+      const sizePrices = res.data.sizePrices;
+      pm.test("TC-DETAIL-03: Có đủ các size S, M, L", function () {
+          const sizes = sizePrices.map(sp => sp.size);
+          pm.expect(sizes).to.include.members(['S', 'M', 'L']);
+      });
+      pm.test("TC-DETAIL-03: Size S có phụ thu 0đ (mặc định trên UI)", function () {
+          const sizeS = sizePrices.find(sp => sp.size === 'S');
+          pm.expect(sizeS.priceAdjustment).to.equal(0);
+      });
+      pm.test("TC-DETAIL-03: Sắp xếp phụ thu tăng dần (S <= M <= L)", function () {
+          for (let i = 0; i < sizePrices.length - 1; i++) {
+              pm.expect(sizePrices[i].priceAdjustment).to.be.at.most(sizePrices[i + 1].priceAdjustment);
+          }
+      });
+    language: text/javascript
+order: 7000

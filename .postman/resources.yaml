@@ -4,8 +4,8 @@ workspace:
 
 localResources:
   collections:
-    - ../docs/postman/BrewLite_API.postman_collection.json
     - ../docs/postman/BrewLite API - SGU
+    - ../postman/collections/BrewLite - SP2-04 (Vũ Hoàng Huy)
   environments:
     - ../docs/postman/BrewLite - Local (A1).environment.yaml
     - ../docs/postman/BrewLite - Production (A2).environment.yaml
@@ -16,3 +16,4 @@ cloudResources:
   collections:
     ../docs/postman/BrewLite API - SGU: be217d5e-1b2b-42b2-bb1f-1d722e24bcab
     ../postman/collections/BrewLite - SP2-04 (Vũ Hoàng Huy): c1f7b8a2-9481-4e7a-9a91-brewlite-sp2-04
+    ../postman/collections/BrewLite - Bảng 47 Mapping AC & Test Case ID (Vũ Hoàng Huy): ddd0bb1d-de2c-45ac-ac47-727148124096

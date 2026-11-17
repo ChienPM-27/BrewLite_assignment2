@@ -1,0 +1,37 @@
+$kind: http-request
+name: "TC-DETAIL-09 (AC-08.4): Chặn đặt món khi Size không hợp lệ"
+description: "Ánh xạ AC-08.4: Gửi size không hợp lệ -> Backend chặn bằng 400 Bad Request."
+url: "{{baseUrl}}/orders"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "items": [
+        {
+          "productId": "{{productId}}",
+          "size": "EXTRA_LARGE",
+          "quantity": 1,
+          "toppingIds": []
+        }
+      ]
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("TC-DETAIL-09: Status code 400 Bad Request", function () {
+          pm.response.to.have.status(400);
+      });
+      const res = pm.response.json();
+      pm.test("TC-DETAIL-09: Báo lỗi size không thuộc S, M, L", function () {
+          const msg = JSON.stringify(res.message);
+          pm.expect(msg).to.match(/size must be one of|S, M/i);
+      });
+    language: text/javascript
+order: 11000

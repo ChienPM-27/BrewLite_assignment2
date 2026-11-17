@@ -1,0 +1,168 @@
+{
+	"info": {
+		"_postman_id": "c1f7b8a2-9481-4e7a-9a91-sp204-perf-test",
+		"name": "BrewLite - SP2-04 Performance Test (Vũ Hoàng Huy)",
+		"description": "Collection tối ưu hóa 100% cho Performance & Load Testing (20 VUs, 2 mins) theo đúng phạm vi SP2-04 của Vũ Hoàng Huy:\n- FR-07: Xem chi tiết sản phẩm (Product Detail)\n- FR-08: Tùy biến Size & Topping\n- FR-09: Bảng giá Pricing theo Size và Topping\n\nThiết kế chuẩn Performance Test:\n1. 100% Idempotent / Read-only (Không gây Race Condition giữa 20 VUs).\n2. Không chứa các ca Negative 4xx (Đảm bảo Error Rate = 0.00%).\n3. Assertion nhẹ nhàng, tương thích hoàn toàn với Postman Load Runner.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "https://brew-lite.vercel.app/api/v1",
+			"type": "string"
+		},
+		{
+			"key": "productId",
+			"value": "cly1product0001tea0000001",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "PERF-01. Lấy danh sách sản phẩm (Public Catalog Load)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code là 200 OK\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"const res = pm.response.json();",
+							"pm.test(\"Dữ liệu danh mục hợp lệ\", function () {",
+							"    pm.expect(res.success).to.be.true;",
+							"    pm.expect(res.data).to.be.an('array');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/products",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"products"
+					]
+				},
+				"description": "Kiểm thử tải đọc danh sách sản phẩm đồng thời từ 20 VUs."
+			},
+			"response": []
+		},
+		{
+			"name": "PERF-02. Xem chi tiết món Trà Ô Long Bưởi Đỏ (FR-07 / FR-09)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code là 200 OK\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"const res = pm.response.json();",
+							"pm.test(\"Chi tiết sản phẩm đầy đủ thông tin basePrice & sizePrices\", function () {",
+							"    pm.expect(res.data).to.have.property('id');",
+							"    pm.expect(res.data).to.have.property('name');",
+							"    pm.expect(res.data.sizePrices).to.be.an('array');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/products/cly1product0001tea0000001",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"products",
+						"cly1product0001tea0000001"
+					]
+				},
+				"description": "Đo độ trễ và khả năng chịu tải của API xem chi tiết món (FR-07) và bảng giá (FR-09)."
+			},
+			"response": []
+		},
+		{
+			"name": "PERF-03. Xem chi tiết món Trà Sữa Trân Châu Hoàng Gia (FR-07 / FR-09)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code là 200 OK\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"const res = pm.response.json();",
+							"pm.test(\"Chi tiết món có danh sách Topping khả dụng\", function () {",
+							"    pm.expect(res.data).to.have.property('toppings');",
+							"    pm.expect(res.data.toppings).to.be.an('array');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/products/cly1product0002tea0000002",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"products",
+						"cly1product0002tea0000002"
+					]
+				},
+				"description": "Mô phỏng người dùng đồng thời xem chi tiết món trà sữa có nhiều topping."
+			},
+			"response": []
+		},
+		{
+			"name": "PERF-04. Xem chi tiết món Trà Xanh Macchiato (FR-07)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code là 200 OK\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/products/cly1product0003tea0000003",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"products",
+						"cly1product0003tea0000003"
+					]
+				},
+				"description": "Đo tải khi tải chi tiết món thứ 3."
+			},
+			"response": []
+		}
+	]
+}

@@ -1,0 +1,915 @@
+{
+	"info": {
+		"_postman_id": "b47-mapping-ac-vu-hoang-huy-2026",
+		"name": "BrewLite - Bảng 47 Mapping AC & Test Case ID (Vũ Hoàng Huy)",
+		"description": "Collection độc lập phục vụ vấn đáp, ánh xạ chính xác 100% theo Bảng 47. Mapping AC và Test Case ID (FR-07..09):\n- TC-DETAIL-01 (AC-07.1): Chi tiết món hợp lệ\n- TC-DETAIL-02 (AC-07.2): 404 Not Found\n- TC-DETAIL-06 (AC-07.3): 400 Bad Request regex ID\n- TC-DETAIL-07 (AC-07.4): Kiểm tra trạng thái isAvailable & stock\n- TC-DETAIL-03 (AC-08.1): Kích cỡ S, M, L\n- TC-DETAIL-04 (AC-08.2): Chặn chọn quá 3 topping\n- TC-DETAIL-08 (AC-08.3): Biên số lượng 1..99\n- TC-DETAIL-09 (AC-08.4): Chặn size không hợp lệ\n- TC-DETAIL-10 (AC-09.1): Phụ thu theo Size\n- TC-DETAIL-11 (AC-09.2): Phụ thu Topping\n- TC-DETAIL-12 (AC-09.3): Thành tiền theo số lượng\n- TC-DETAIL-05 (AC-09.4, AC-09.5): Backend tính giá độc lập & Chống giả mạo giá\n- TC-DETAIL-13 (AC-09.6): Validate đầu vào & DB không hợp lệ",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "https://brew-lite.vercel.app/api/v1",
+			"type": "string"
+		},
+		{
+			"key": "accessToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "productId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "productName",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "productBasePrice",
+			"value": "0",
+			"type": "string"
+		},
+		{
+			"key": "toppingId1",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "toppingId2",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "toppingPrice1",
+			"value": "0",
+			"type": "string"
+		},
+		{
+			"key": "toppingPrice2",
+			"value": "0",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "00. [KHỞI TẠO] Đăng nhập & Lấy Token",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Đăng nhập thành công 200 OK\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"const res = pm.response.json();",
+							"const token = res.data && res.data.accessToken;",
+							"pm.test(\"Nhận được accessToken hợp lệ\", function () {",
+							"    pm.expect(token).to.be.a('string');",
+							"});",
+							"if (token) {",
+							"    pm.collectionVariables.set(\"accessToken\", token);",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"email\": \"demo@brewlite.test\",\n  \"password\": \"Demo@12345\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/auth/login",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"auth",
+						"login"
+					]
+				},
+				"description": "Lấy JWT token gán vào biến {{accessToken}} để chạy các test case đặt hàng và tính giá."
+			},
+			"response": []
+		},
+		{
+			"name": "00. [KHỞI TẠO] Lấy danh mục món -> Tự lưu Product & Topping",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code là 200 OK\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"const res = pm.response.json();",
+							"const items = res.data || [];",
+							"pm.test(\"Catalog có sản phẩm khả dụng\", function () {",
+							"    pm.expect(items.length).to.be.above(0);",
+							"});",
+							"if (items.length > 0) {",
+							"    const item = items.find(p => p.name.includes('Cà phê sữa')) || items[0];",
+							"    pm.collectionVariables.set(\"productId\", item.id);",
+							"    pm.collectionVariables.set(\"productName\", item.name);",
+							"    pm.collectionVariables.set(\"productBasePrice\", String(item.basePrice));",
+							"    console.log(\"Đã lưu món test:\", item.name, \"- ID:\", item.id, \"- Giá gốc:\", item.basePrice);",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/products",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"products"
+					]
+				},
+				"description": "Lấy danh sách món để nạp ID cho các test case bên dưới."
+			},
+			"response": []
+		},
+		{
+			"name": "TC-DETAIL-01 (AC-07.1): Lấy chi tiết sản phẩm hợp lệ (Happy Path)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"TC-DETAIL-01: Status code 200 OK\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"const res = pm.response.json();",
+							"const prod = res.data;",
+							"pm.test(\"TC-DETAIL-01: Trả về đầy đủ id, name, basePrice, currency, isAvailable\", function () {",
+							"    pm.expect(prod.id).to.equal(pm.collectionVariables.get(\"productId\"));",
+							"    pm.expect(prod).to.have.property('name');",
+							"    pm.expect(prod).to.have.property('basePrice');",
+							"    pm.expect(prod.currency).to.equal('VND');",
+							"    pm.expect(prod.isAvailable).to.equal(true);",
+							"});",
+							"pm.test(\"TC-DETAIL-01: Trả về danh sách sizePrices và toppings\", function () {",
+							"    pm.expect(prod.sizePrices).to.be.an('array').that.is.not.empty;",
+							"    pm.expect(prod.toppings).to.be.an('array');",
+							"});",
+							"if (prod.toppings && prod.toppings.length >= 2) {",
+							"    pm.collectionVariables.set(\"toppingId1\", prod.toppings[0].id);",
+							"    pm.collectionVariables.set(\"toppingPrice1\", String(prod.toppings[0].price));",
+							"    pm.collectionVariables.set(\"toppingId2\", prod.toppings[1].id);",
+							"    pm.collectionVariables.set(\"toppingPrice2\", String(prod.toppings[1].price));",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/products/{{productId}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"products",
+						"{{productId}}"
+					]
+				},
+				"description": "Ánh xạ AC-07.1: Gọi GET /products/:id trả về 200 OK với đầy đủ thông tin chi tiết, ảnh, giá gốc, danh sách size và topping."
+			},
+			"response": []
+		},
+		{
+			"name": "TC-DETAIL-02 (AC-07.2): Sản phẩm không tồn tại (404 Not Found)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"TC-DETAIL-02: Status code 404 Not Found\", function () {",
+							"    pm.response.to.have.status(404);",
+							"});",
+							"const res = pm.response.json();",
+							"pm.test(\"TC-DETAIL-02: Thông báo lỗi sản phẩm không tồn tại\", function () {",
+							"    pm.expect(res.error).to.equal(\"Not Found\");",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/products/san-pham-khong-ton-tai-9999",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"products",
+						"san-pham-khong-ton-tai-9999"
+					]
+				},
+				"description": "Ánh xạ AC-07.2: Truy vấn ID đúng định dạng nhưng không có trong database -> Backend trả về 404 Not Found."
+			},
+			"response": []
+		},
+		{
+			"name": "TC-DETAIL-06 (AC-07.3): ID sai định dạng regex (400 Bad Request)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"TC-DETAIL-06: Status code 400 Bad Request\", function () {",
+							"    pm.response.to.have.status(400);",
+							"});",
+							"const res = pm.response.json();",
+							"pm.test(\"TC-DETAIL-06: Báo lỗi ID không hợp lệ\", function () {",
+							"    pm.expect(res.message).to.include(\"ID sản phẩm không hợp lệ\");",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/products/bad!id@chars#regex",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"products",
+						"bad!id@chars#regex"
+					]
+				},
+				"description": "Ánh xạ AC-07.3: ID vi phạm biểu thức chính quy ^[A-Za-z0-9_-]{1,64}$ -> Backend trả về 400 Bad Request."
+			},
+			"response": []
+		},
+		{
+			"name": "TC-DETAIL-07 (AC-07.4): Trạng thái món mở bán (isAvailable & stock > 0)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"TC-DETAIL-07: Status code 200 OK\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"const res = pm.response.json();",
+							"const prod = res.data;",
+							"pm.test(\"TC-DETAIL-07: Sản phẩm mở bán có isAvailable = true\", function () {",
+							"    pm.expect(prod.isAvailable).to.equal(true);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/products/{{productId}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"products",
+						"{{productId}}"
+					]
+				},
+				"description": "Ánh xạ AC-07.4: Kiểm tra trạng thái khả dụng của món. Nếu món ngừng bán (isAvailable = false) giao diện sẽ disable nút đặt món."
+			},
+			"response": []
+		},
+		{
+			"name": "TC-DETAIL-03 (AC-08.1): Cấu hình kích cỡ S, M, L theo thứ tự phụ thu",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"TC-DETAIL-03: Status code 200 OK\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"const res = pm.response.json();",
+							"const sizePrices = res.data.sizePrices;",
+							"pm.test(\"TC-DETAIL-03: Có đủ các size S, M, L\", function () {",
+							"    const sizes = sizePrices.map(sp => sp.size);",
+							"    pm.expect(sizes).to.include.members(['S', 'M', 'L']);",
+							"});",
+							"pm.test(\"TC-DETAIL-03: Size S có phụ thu 0đ (mặc định trên UI)\", function () {",
+							"    const sizeS = sizePrices.find(sp => sp.size === 'S');",
+							"    pm.expect(sizeS.priceAdjustment).to.equal(0);",
+							"});",
+							"pm.test(\"TC-DETAIL-03: Sắp xếp phụ thu tăng dần (S <= M <= L)\", function () {",
+							"    for (let i = 0; i < sizePrices.length - 1; i++) {",
+							"        pm.expect(sizePrices[i].priceAdjustment).to.be.at.most(sizePrices[i + 1].priceAdjustment);",
+							"    }",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/products/{{productId}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"products",
+						"{{productId}}"
+					]
+				},
+				"description": "Ánh xạ AC-08.1: Kiểm tra cấu hình kích cỡ món gồm 3 size S/M/L, Size S phụ thu 0đ mặc định."
+			},
+			"response": []
+		},
+		{
+			"name": "TC-DETAIL-04 (AC-08.2): Chặn chọn vượt quá 3 Topping (400 Bad Request)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"TC-DETAIL-04: Status code 400 Bad Request\", function () {",
+							"    pm.response.to.have.status(400);",
+							"});",
+							"const res = pm.response.json();",
+							"pm.test(\"TC-DETAIL-04: Báo lỗi vượt quá tối đa 3 topping\", function () {",
+							"    const msg = JSON.stringify(res.message);",
+							"    pm.expect(msg).to.match(/3 topping|not more than 3 elements/i);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{accessToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"size\": \"M\",\n      \"quantity\": 1,\n      \"toppingIds\": [\"top_1\", \"top_2\", \"top_3\", \"top_4\"]\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/orders",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"orders"
+					]
+				},
+				"description": "Ánh xạ AC-08.2: Gửi 4 topping trong một dòng món -> Backend chặn đứng bằng 400 Bad Request."
+			},
+			"response": []
+		},
+		{
+			"name": "TC-DETAIL-08 (AC-08.3): Chặn số lượng vi phạm biên 1..99 (Biên dưới quantity = 0)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"TC-DETAIL-08: Status code 400 Bad Request khi quantity = 0\", function () {",
+							"    pm.response.to.have.status(400);",
+							"});",
+							"const res = pm.response.json();",
+							"pm.test(\"TC-DETAIL-08: Báo lỗi số lượng phải từ 1 đến 99\", function () {",
+							"    const msg = JSON.stringify(res.message);",
+							"    pm.expect(msg).to.match(/quantity|1 đến 99/i);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{accessToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"size\": \"M\",\n      \"quantity\": 0,\n      \"toppingIds\": []\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/orders",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"orders"
+					]
+				},
+				"description": "Ánh xạ AC-08.3: Gửi quantity = 0 vi phạm biên dưới [1, 99] -> Backend trả về 400 Bad Request."
+			},
+			"response": []
+		},
+		{
+			"name": "TC-DETAIL-08 (AC-08.3): Chặn số lượng vi phạm biên 1..99 (Biên trên quantity = 100)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"TC-DETAIL-08: Status code 400 Bad Request khi quantity = 100\", function () {",
+							"    pm.response.to.have.status(400);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{accessToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"size\": \"M\",\n      \"quantity\": 100,\n      \"toppingIds\": []\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/orders",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"orders"
+					]
+				},
+				"description": "Ánh xạ AC-08.3: Gửi quantity = 100 vi phạm biên trên [1, 99] -> Backend trả về 400 Bad Request."
+			},
+			"response": []
+		},
+		{
+			"name": "TC-DETAIL-09 (AC-08.4): Chặn đặt món khi Size không hợp lệ",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"TC-DETAIL-09: Status code 400 Bad Request\", function () {",
+							"    pm.response.to.have.status(400);",
+							"});",
+							"const res = pm.response.json();",
+							"pm.test(\"TC-DETAIL-09: Báo lỗi size không thuộc S, M, L\", function () {",
+							"    const msg = JSON.stringify(res.message);",
+							"    pm.expect(msg).to.match(/size must be one of|S, M/i);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{accessToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"size\": \"EXTRA_LARGE\",\n      \"quantity\": 1,\n      \"toppingIds\": []\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/orders",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"orders"
+					]
+				},
+				"description": "Ánh xạ AC-08.4: Gửi size không hợp lệ -> Backend chặn bằng 400 Bad Request."
+			},
+			"response": []
+		},
+		{
+			"name": "TC-DETAIL-10 (AC-09.1): Tính giá khi nâng cấp Size (Size M: +5.000đ)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"TC-DETAIL-10: Status code 201 Created\", function () {",
+							"    pm.response.to.have.status(201);",
+							"});",
+							"const res = pm.response.json();",
+							"const expectedTotal = Number(pm.collectionVariables.get(\"productBasePrice\")) + 5000;",
+							"pm.test(\"TC-DETAIL-10: Tổng tiền = basePrice + 5.000đ (Size M)\", function () {",
+							"    pm.expect(Number(res.data.totalAmount)).to.equal(expectedTotal);",
+							"});",
+							"console.log(\"BasePrice:\", pm.collectionVariables.get(\"productBasePrice\"), \"+ 5000 (Size M) =\", res.data.totalAmount);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{accessToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"size\": \"M\",\n      \"quantity\": 1,\n      \"toppingIds\": []\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/orders",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"orders"
+					]
+				},
+				"description": "Ánh xạ AC-09.1: Chọn Size M -> Đơn giá = basePrice + 5.000đ."
+			},
+			"response": []
+		},
+		{
+			"name": "TC-DETAIL-11 (AC-09.2): Tính giá khi thêm Topping (Size S + 2 Topping)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"TC-DETAIL-11: Status code 201 Created\", function () {",
+							"    pm.response.to.have.status(201);",
+							"});",
+							"const res = pm.response.json();",
+							"const base = Number(pm.collectionVariables.get(\"productBasePrice\"));",
+							"const top1 = Number(pm.collectionVariables.get(\"toppingPrice1\"));",
+							"const top2 = Number(pm.collectionVariables.get(\"toppingPrice2\"));",
+							"const expectedTotal = base + 0 + top1 + top2;",
+							"pm.test(\"TC-DETAIL-11: Tổng tiền = basePrice + phụ thu 2 topping\", function () {",
+							"    pm.expect(Number(res.data.totalAmount)).to.equal(expectedTotal);",
+							"});",
+							"console.log(\"Base:\", base, \"+ Topping:\", (top1 + top2), \"=\", res.data.totalAmount);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{accessToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"size\": \"S\",\n      \"quantity\": 1,\n      \"toppingIds\": [\n        \"{{toppingId1}}\",\n        \"{{toppingId2}}\"\n      ]\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/orders",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"orders"
+					]
+				},
+				"description": "Ánh xạ AC-09.2: Chọn thêm 2 topping -> Thành tiền cộng đúng phụ thu topping."
+			},
+			"response": []
+		},
+		{
+			"name": "TC-DETAIL-12 (AC-09.3): Tính thành tiền theo số lượng (Đơn giá x 2 ly)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"TC-DETAIL-12: Status code 201 Created\", function () {",
+							"    pm.response.to.have.status(201);",
+							"});",
+							"const res = pm.response.json();",
+							"const base = Number(pm.collectionVariables.get(\"productBasePrice\"));",
+							"const top1 = Number(pm.collectionVariables.get(\"toppingPrice1\"));",
+							"const unitPriceWithTop = base + 5000 + top1;",
+							"const expectedTotal = unitPriceWithTop * 2;",
+							"pm.test(\"TC-DETAIL-12: Thành tiền = unitPriceWithToppings x 2 ly\", function () {",
+							"    pm.expect(Number(res.data.totalAmount)).to.equal(expectedTotal);",
+							"});",
+							"console.log(\"Đơn giá 1 ly:\", unitPriceWithTop, \"x 2 ly =\", res.data.totalAmount);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{accessToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"size\": \"M\",\n      \"quantity\": 2,\n      \"toppingIds\": [\n        \"{{toppingId1}}\"\n      ]\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/orders",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"orders"
+					]
+				},
+				"description": "Ánh xạ AC-09.3: Đơn giá ly x số lượng = thành tiền (không sai số làm tròn)."
+			},
+			"response": []
+		},
+		{
+			"name": "TC-DETAIL-05 (AC-09.4, AC-09.5): Chống giả mạo giá từ Client (Pricing Invariant)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"TC-DETAIL-05 (AC-09.5): Backend bảo vệ tính toàn vẹn giá - Chặn giá giả mạo\", function () {",
+							"    pm.expect([201, 400]).to.include(pm.response.code);",
+							"});",
+							"const res = pm.response.json();",
+							"if (pm.response.code === 400) {",
+							"    pm.test(\"TC-DETAIL-05: ValidationPipe phát hiện và chặn đứng trường giá lậu (unitPrice/totalAmount)\", function () {",
+							"        const msg = JSON.stringify(res.message);",
+							"        pm.expect(msg).to.match(/should not exist|không hợp lệ/i);",
+							"    });",
+							"    console.log(\"BẢO MẬT TUYỆT ĐỐI: NestJS ValidationPipe chặn đứng field giá lậu với HTTP 400!\");",
+							"} else if (pm.response.code === 201) {",
+							"    const order = res.data;",
+							"    pm.test(\"TC-DETAIL-05: PricingService tự đọc DB và tính giá thật (> 10.000đ)\", function () {",
+							"        pm.expect(Number(order.totalAmount)).to.be.above(10000);",
+							"        pm.expect(Number(order.totalAmount)).to.not.equal(2);",
+							"    });",
+							"    console.log(\"BẢO MẬT THÀNH CÔNG: PricingService tính đúng giá gốc:\", order.totalAmount, \"VNĐ\");",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{accessToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"size\": \"L\",\n      \"quantity\": 2,\n      \"toppingIds\": [\n        \"{{toppingId1}}\"\n      ],\n      \"basePrice\": 1,\n      \"unitPrice\": 1,\n      \"subtotal\": 2,\n      \"totalAmount\": 2\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/orders",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"orders"
+					]
+				},
+				"description": "Ánh xạ AC-09.4 & AC-09.5: Cố tình chèn các trường giá rẻ mạt. Backend tự truy vấn giá chuẩn từ PostgreSQL và bỏ qua giá gian lận."
+			},
+			"response": []
+		},
+		{
+			"name": "TC-DETAIL-13 (AC-09.6): Chặn dữ liệu đầu vào không hợp lệ (Topping trùng lặp)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"TC-DETAIL-13: Status code 400 Bad Request cho topping trùng lặp\", function () {",
+							"    pm.response.to.have.status(400);",
+							"});",
+							"const res = pm.response.json();",
+							"pm.test(\"TC-DETAIL-13: Báo lỗi topping không được trùng lặp\", function () {",
+							"    const msg = JSON.stringify(res.message);",
+							"    pm.expect(msg).to.match(/trùng lặp|unique/i);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{accessToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"size\": \"M\",\n      \"quantity\": 1,\n      \"toppingIds\": [\n        \"{{toppingId1}}\",\n        \"{{toppingId1}}\"\n      ]\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/orders",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"orders"
+					]
+				},
+				"description": "Ánh xạ AC-09.6: Gửi 2 ID topping trùng nhau -> Backend chặn bằng 400 Bad Request."
+			},
+			"response": []
+		},
+		{
+			"name": "TC-DETAIL-13 (AC-09.6): Chặn khi danh sách items rỗng",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"TC-DETAIL-13: Status code 400 Bad Request khi items rỗng\", function () {",
+							"    pm.response.to.have.status(400);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{accessToken}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"items\": []\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/orders",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"orders"
+					]
+				},
+				"description": "Ánh xạ AC-09.6: Gửi items: [] -> Backend chặn bằng 400 Bad Request."
+			},
+			"response": []
+		}
+	]
+}

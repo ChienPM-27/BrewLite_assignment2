@@ -1,0 +1,43 @@
+$kind: http-request
+name: "TC-DETAIL-12 (AC-09.3): Tính thành tiền theo số lượng (Đơn giá x 2 ly)"
+description: "Ánh xạ AC-09.3: Đơn giá ly x số lượng = thành tiền (không sai số làm tròn)."
+url: "{{baseUrl}}/orders"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "items": [
+        {
+          "productId": "{{productId}}",
+          "size": "M",
+          "quantity": 2,
+          "toppingIds": [
+            "{{toppingId1}}"
+          ]
+        }
+      ]
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("TC-DETAIL-12: Status code 201 Created", function () {
+          pm.response.to.have.status(201);
+      });
+      const res = pm.response.json();
+      const base = Number(pm.collectionVariables.get("productBasePrice"));
+      const top1 = Number(pm.collectionVariables.get("toppingPrice1"));
+      const unitPriceWithTop = base + 5000 + top1;
+      const expectedTotal = unitPriceWithTop * 2;
+      pm.test("TC-DETAIL-12: Thành tiền = unitPriceWithToppings x 2 ly", function () {
+          pm.expect(Number(res.data.totalAmount)).to.equal(expectedTotal);
+      });
+      console.log("Đơn giá 1 ly:", unitPriceWithTop, "x 2 ly =", res.data.totalAmount);
+    language: text/javascript
+order: 14000

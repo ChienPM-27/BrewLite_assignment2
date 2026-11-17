@@ -1,0 +1,44 @@
+$kind: http-request
+name: "TC-DETAIL-11 (AC-09.2): Tính giá khi thêm Topping (Size S + 2 Topping)"
+description: "Ánh xạ AC-09.2: Chọn thêm 2 topping -> Thành tiền cộng đúng phụ thu topping."
+url: "{{baseUrl}}/orders"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "items": [
+        {
+          "productId": "{{productId}}",
+          "size": "S",
+          "quantity": 1,
+          "toppingIds": [
+            "{{toppingId1}}",
+            "{{toppingId2}}"
+          ]
+        }
+      ]
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("TC-DETAIL-11: Status code 201 Created", function () {
+          pm.response.to.have.status(201);
+      });
+      const res = pm.response.json();
+      const base = Number(pm.collectionVariables.get("productBasePrice"));
+      const top1 = Number(pm.collectionVariables.get("toppingPrice1"));
+      const top2 = Number(pm.collectionVariables.get("toppingPrice2"));
+      const expectedTotal = base + 0 + top1 + top2;
+      pm.test("TC-DETAIL-11: Tổng tiền = basePrice + phụ thu 2 topping", function () {
+          pm.expect(Number(res.data.totalAmount)).to.equal(expectedTotal);
+      });
+      console.log("Base:", base, "+ Topping:", (top1 + top2), "=", res.data.totalAmount);
+    language: text/javascript
+order: 13000

@@ -1,0 +1,38 @@
+$kind: http-request
+name: "TC-DETAIL-10 (AC-09.1): Tính giá khi nâng cấp Size (Size M: +5.000đ)"
+description: "Ánh xạ AC-09.1: Chọn Size M -> Đơn giá = basePrice + 5.000đ."
+url: "{{baseUrl}}/orders"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "items": [
+        {
+          "productId": "{{productId}}",
+          "size": "M",
+          "quantity": 1,
+          "toppingIds": []
+        }
+      ]
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("TC-DETAIL-10: Status code 201 Created", function () {
+          pm.response.to.have.status(201);
+      });
+      const res = pm.response.json();
+      const expectedTotal = Number(pm.collectionVariables.get("productBasePrice")) + 5000;
+      pm.test("TC-DETAIL-10: Tổng tiền = basePrice + 5.000đ (Size M)", function () {
+          pm.expect(Number(res.data.totalAmount)).to.equal(expectedTotal);
+      });
+      console.log("BasePrice:", pm.collectionVariables.get("productBasePrice"), "+ 5000 (Size M) =", res.data.totalAmount);
+    language: text/javascript
+order: 12000

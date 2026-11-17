@@ -1,0 +1,37 @@
+$kind: http-request
+name: "TC-DETAIL-08 (AC-08.3): Chặn số lượng vi phạm biên 1..99 (Biên dưới quantity = 0)"
+description: "Ánh xạ AC-08.3: Gửi quantity = 0 vi phạm biên dưới [1, 99] -> Backend trả về 400 Bad Request."
+url: "{{baseUrl}}/orders"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "items": [
+        {
+          "productId": "{{productId}}",
+          "size": "M",
+          "quantity": 0,
+          "toppingIds": []
+        }
+      ]
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("TC-DETAIL-08: Status code 400 Bad Request khi quantity = 0", function () {
+          pm.response.to.have.status(400);
+      });
+      const res = pm.response.json();
+      pm.test("TC-DETAIL-08: Báo lỗi số lượng phải từ 1 đến 99", function () {
+          const msg = JSON.stringify(res.message);
+          pm.expect(msg).to.match(/quantity|1 đến 99/i);
+      });
+    language: text/javascript
+order: 9000

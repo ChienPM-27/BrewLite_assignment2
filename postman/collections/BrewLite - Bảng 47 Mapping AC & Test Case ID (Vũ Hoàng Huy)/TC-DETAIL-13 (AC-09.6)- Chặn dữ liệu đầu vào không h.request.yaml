@@ -1,0 +1,40 @@
+$kind: http-request
+name: "TC-DETAIL-13 (AC-09.6): Chặn dữ liệu đầu vào không hợp lệ (Topping trùng lặp)"
+description: "Ánh xạ AC-09.6: Gửi 2 ID topping trùng nhau -> Backend chặn bằng 400 Bad Request."
+url: "{{baseUrl}}/orders"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "items": [
+        {
+          "productId": "{{productId}}",
+          "size": "M",
+          "quantity": 1,
+          "toppingIds": [
+            "{{toppingId1}}",
+            "{{toppingId1}}"
+          ]
+        }
+      ]
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("TC-DETAIL-13: Status code 400 Bad Request cho topping trùng lặp", function () {
+          pm.response.to.have.status(400);
+      });
+      const res = pm.response.json();
+      pm.test("TC-DETAIL-13: Báo lỗi topping không được trùng lặp", function () {
+          const msg = JSON.stringify(res.message);
+          pm.expect(msg).to.match(/trùng lặp|unique/i);
+      });
+    language: text/javascript
+order: 16000

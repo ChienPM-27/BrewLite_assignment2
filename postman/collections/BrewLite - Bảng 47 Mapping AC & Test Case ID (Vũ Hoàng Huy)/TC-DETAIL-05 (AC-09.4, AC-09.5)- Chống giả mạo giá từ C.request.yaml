@@ -1,0 +1,45 @@
+$kind: http-request
+name: "TC-DETAIL-05 (AC-09.4, AC-09.5): Chống giả mạo giá từ Client (Pricing Invariant)"
+description: "Ánh xạ AC-09.4 & AC-09.5: Cố tình chèn các trường giá rẻ mạt. Backend tự truy vấn giá chuẩn từ PostgreSQL và bỏ qua giá gian lận."
+url: "{{baseUrl}}/orders"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "items": [
+        {
+          "productId": "{{productId}}",
+          "size": "L",
+          "quantity": 2,
+          "toppingIds": [
+            "{{toppingId1}}"
+          ],
+          "basePrice": 1,
+          "unitPrice": 1,
+          "subtotal": 2,
+          "totalAmount": 2
+        }
+      ]
+    }
+auth:
+  type: bearer
+  credentials:
+    token: "{{accessToken}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("TC-DETAIL-05: Backend tạo đơn nhưng bỏ qua giá giả mạo (201 Created)", function () {
+          pm.response.to.have.status(201);
+      });
+      const res = pm.response.json();
+      const order = res.data;
+      pm.test("TC-DETAIL-05: Backend KHÔNG bị lừa bởi giá 1đ hoặc 2đ của Client", function () {
+          pm.expect(Number(order.totalAmount)).to.be.above(10000);
+          pm.expect(Number(order.totalAmount)).to.not.equal(2);
+      });
+      console.log("Client gửi unitPrice=1, totalAmount=2 -> Backend tính thật từ DB ra:", order.totalAmount, "VNĐ");
+    language: text/javascript
+order: 15000

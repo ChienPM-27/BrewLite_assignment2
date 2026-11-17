@@ -1,0 +1,26 @@
+$kind: collection
+description: |-
+  Collection độc lập phục vụ vấn đáp, ánh xạ chính xác 100% theo Bảng 47. Mapping AC và Test Case ID (FR-07..09):
+  - TC-DETAIL-01 (AC-07.1): Chi tiết món hợp lệ
+  - TC-DETAIL-02 (AC-07.2): 404 Not Found
+  - TC-DETAIL-06 (AC-07.3): 400 Bad Request regex ID
+  - TC-DETAIL-07 (AC-07.4): Kiểm tra trạng thái isAvailable & stock
+  - TC-DETAIL-03 (AC-08.1): Kích cỡ S, M, L
+  - TC-DETAIL-04 (AC-08.2): Chặn chọn quá 3 topping
+  - TC-DETAIL-08 (AC-08.3): Biên số lượng 1..99
+  - TC-DETAIL-09 (AC-08.4): Chặn size không hợp lệ
+  - TC-DETAIL-10 (AC-09.1): Phụ thu theo Size
+  - TC-DETAIL-11 (AC-09.2): Phụ thu Topping
+  - TC-DETAIL-12 (AC-09.3): Thành tiền theo số lượng
+  - TC-DETAIL-05 (AC-09.4, AC-09.5): Backend tính giá độc lập & Chống giả mạo giá
+  - TC-DETAIL-13 (AC-09.6): Validate đầu vào & DB không hợp lệ
+variables:
+  baseUrl: https://brew-lite.vercel.app/api/v1
+  accessToken: ""
+  productId: ""
+  productName: ""
+  productBasePrice: "0"
+  toppingId1: ""
+  toppingId2: ""
+  toppingPrice1: "0"
+  toppingPrice2: "0"
