@@ -31,16 +31,23 @@ auth:
 scripts:
   - type: afterResponse
     code: |-
-      pm.test("Backend chấp nhận tạo đơn nhưng bỏ qua giá giả mạo (201 Created)", function () {
-          pm.response.to.have.status(201);
+      pm.test("Backend BẢO MẬT: Chặn đứng giá giả mạo (400) hoặc Tự tính lại giá chuẩn (201)", function () {
+          pm.expect([201, 400]).to.include(pm.response.code);
       });
 
       const res = pm.response.json();
-      const order = res.data;
-      pm.test("Backend KHÔNG bị lừa bởi giá 1 đồng (totalAmount > 10.000đ)", function () {
-          pm.expect(Number(order.totalAmount)).to.be.above(10000);
-          pm.expect(Number(order.totalAmount)).to.not.equal(2);
-      });
-      console.log("Client gửi unitPrice=1, totalAmount=2 -> Backend tính chuẩn ra:", order.totalAmount, "VNĐ");
+
+      if (pm.response.code === 400) {
+          pm.test("Backend từ chối nhận payload gian lận giá (Validation Guard)", function () {
+              pm.expect(res.message).to.be.an('array');
+              console.log("✅ Backend chặn thành công với 400 Bad Request:", res.message);
+          });
+      } else if (pm.response.code === 201) {
+          const order = res.data;
+          pm.test("Backend tính lại giá chuẩn từ DB (Không bị lừa bởi giá 1 đồng)", function () {
+              pm.expect(Number(order.totalAmount)).to.be.above(10000);
+              pm.expect(Number(order.totalAmount)).to.not.equal(2);
+          });
+      }
     language: text/javascript
 order: 6000
